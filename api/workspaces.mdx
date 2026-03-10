@@ -1,0 +1,312 @@
+---
+title: Workspaces
+description: Workspace management endpoints for collaborative project organization
+---
+
+## Overview
+
+Workspaces are collaborative environments that contain multiple projects. Users can be members of multiple workspaces with different role-based permissions:
+
+- **Administrator**: Full control over workspace, projects, and members
+- **Editor**: Can create and edit projects and documents
+- **Viewer**: Read-only access to projects and documents
+
+<Note>
+All workspace endpoints require authentication via the `Authorization: Bearer {token}` header.
+</Note>
+
+---
+
+## GET /workspaces
+
+Retrieve all workspaces the authenticated user has access to.
+
+### Request
+
+No request parameters required. Returns workspaces based on authenticated user.
+
+### Response
+
+Returns an array of workspace objects.
+
+<ResponseField name="id" type="string" required>
+  Unique workspace identifier
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Workspace name
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Workspace description (optional)
+</ResponseField>
+
+<ResponseField name="role" type="string" required>
+  Current user's role in this workspace: `administrator`, `editor`, or `viewer`
+</ResponseField>
+
+<ResponseField name="memberCount" type="integer" required>
+  Number of members in the workspace
+</ResponseField>
+
+<ResponseField name="projectCount" type="integer" required>
+  Number of projects in the workspace
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" required>
+  ISO 8601 timestamp of workspace creation
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string" required>
+  ISO 8601 timestamp of last workspace update
+</ResponseField>
+
+### Response Example
+
+```json
+[
+  {
+    "id": "ws_1",
+    "name": "Mobile Development Team",
+    "description": "Projects for mobile app development",
+    "role": "administrator",
+    "memberCount": 12,
+    "projectCount": 8,
+    "createdAt": "2024-01-10T09:00:00Z",
+    "updatedAt": "2024-03-05T16:30:00Z"
+  },
+  {
+    "id": "ws_2",
+    "name": "Client Projects",
+    "description": "External client work",
+    "role": "editor",
+    "memberCount": 5,
+    "projectCount": 3,
+    "createdAt": "2024-02-01T11:15:00Z",
+    "updatedAt": "2024-03-08T10:20:00Z"
+  },
+  {
+    "id": "ws_3",
+    "name": "Research & Development",
+    "description": null,
+    "role": "viewer",
+    "memberCount": 8,
+    "projectCount": 15,
+    "createdAt": "2023-12-05T14:45:00Z",
+    "updatedAt": "2024-03-09T08:10:00Z"
+  }
+]
+```
+
+### Error Responses
+
+<Expandable title="401 Unauthorized">
+```json
+{
+  "error": "Invalid or expired token",
+  "code": "UNAUTHORIZED",
+  "statusCode": 401
+}
+```
+</Expandable>
+
+### Implementation Example
+
+```dart
+final response = await ApiService.dio.get(ApiRoutes.workspaces);
+final workspaces = response.data as List;
+```
+
+---
+
+## GET /workspaces/:id
+
+Retrieve detailed information about a specific workspace.
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  Workspace identifier
+</ParamField>
+
+### Request Example
+
+```
+GET /workspaces/ws_1
+```
+
+### Response
+
+<ResponseField name="id" type="string" required>
+  Unique workspace identifier
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Workspace name
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Workspace description (optional)
+</ResponseField>
+
+<ResponseField name="role" type="string" required>
+  Current user's role in this workspace: `administrator`, `editor`, or `viewer`
+</ResponseField>
+
+<ResponseField name="members" type="array" required>
+  Array of workspace members
+  
+  <Expandable title="Member Object Structure">
+    <ResponseField name="id" type="string" required>
+      User identifier
+    </ResponseField>
+    
+    <ResponseField name="firstName" type="string" required>
+      User's first name
+    </ResponseField>
+    
+    <ResponseField name="lastName" type="string" required>
+      User's last name
+    </ResponseField>
+    
+    <ResponseField name="email" type="string" required>
+      User's email address
+    </ResponseField>
+    
+    <ResponseField name="role" type="string" required>
+      User's role in workspace: `administrator`, `editor`, or `viewer`
+    </ResponseField>
+    
+    <ResponseField name="joinedAt" type="string" required>
+      ISO 8601 timestamp when user joined workspace
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="projects" type="array" required>
+  Array of projects in this workspace (summary information)
+  
+  <Expandable title="Project Object Structure">
+    <ResponseField name="id" type="string" required>
+      Project identifier
+    </ResponseField>
+    
+    <ResponseField name="name" type="string" required>
+      Project name
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Project description (optional)
+    </ResponseField>
+    
+    <ResponseField name="documentCount" type="integer" required>
+      Number of SRS documents in project
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string" required>
+      ISO 8601 timestamp of project creation
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" required>
+  ISO 8601 timestamp of workspace creation
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string" required>
+  ISO 8601 timestamp of last workspace update
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "id": "ws_1",
+  "name": "Mobile Development Team",
+  "description": "Projects for mobile app development",
+  "role": "administrator",
+  "members": [
+    {
+      "id": "user_123",
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "[email protected]",
+      "role": "administrator",
+      "joinedAt": "2024-01-10T09:00:00Z"
+    },
+    {
+      "id": "user_456",
+      "firstName": "Jane",
+      "lastName": "Smith",
+      "email": "[email protected]",
+      "role": "editor",
+      "joinedAt": "2024-01-15T14:30:00Z"
+    },
+    {
+      "id": "user_789",
+      "firstName": "Bob",
+      "lastName": "Johnson",
+      "email": "[email protected]",
+      "role": "viewer",
+      "joinedAt": "2024-02-01T10:15:00Z"
+    }
+  ],
+  "projects": [
+    {
+      "id": "proj_1",
+      "name": "FSD Movil",
+      "description": "Mobile platform for SRS documentation",
+      "documentCount": 5,
+      "createdAt": "2024-01-12T11:00:00Z"
+    },
+    {
+      "id": "proj_2",
+      "name": "E-Commerce App",
+      "description": "Online shopping mobile application",
+      "documentCount": 8,
+      "createdAt": "2024-02-05T09:30:00Z"
+    }
+  ],
+  "createdAt": "2024-01-10T09:00:00Z",
+  "updatedAt": "2024-03-05T16:30:00Z"
+}
+```
+
+### Error Responses
+
+<Expandable title="401 Unauthorized">
+```json
+{
+  "error": "Invalid or expired token",
+  "code": "UNAUTHORIZED",
+  "statusCode": 401
+}
+```
+</Expandable>
+
+<Expandable title="403 Forbidden">
+```json
+{
+  "error": "You do not have access to this workspace",
+  "code": "FORBIDDEN",
+  "statusCode": 403
+}
+```
+</Expandable>
+
+<Expandable title="404 Not Found">
+```json
+{
+  "error": "Workspace not found",
+  "code": "WORKSPACE_NOT_FOUND",
+  "statusCode": 404
+}
+```
+</Expandable>
+
+### Implementation Example
+
+```dart
+final response = await ApiService.dio.get(ApiRoutes.workspace('ws_1'));
+final workspace = response.data as Map<String, dynamic>;
+```

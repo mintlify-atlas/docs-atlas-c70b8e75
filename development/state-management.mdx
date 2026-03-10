@@ -1,0 +1,332 @@
+---
+title: 'State Management'
+description: 'Using Riverpod and StateNotifier for reactive state management in FSD Movil'
+---
+
+## Overview
+
+FSD Movil uses [Riverpod](https://riverpod.dev/) for state management, providing a robust, compile-safe way to manage application state. The app leverages the `StateNotifier` pattern for complex state logic.
+
+## Riverpod Setup
+
+### Provider Scope
+
+The entire app is wrapped in a `ProviderScope` to enable Riverpod functionality (lib/main.dart:8):
+
+```dart
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const ProviderScope(child: MyApp()));
+}
+```
+
+This single scope provides all providers throughout the widget tree.
+
+## Authentication State
+
+### AuthStatus Enum
+
+The authentication state uses a simple enum to represent three possible states (lib/providers/auth_provider.dart:5):
+
+```dart
+enum AuthStatus { unknown, authenticated, unauthenticated }
+```
+
+- **unknown**: Initial state, checking if token exists
+- **authenticated**: User is logged in with valid token
+- **unauthenticated**: No valid session exists
+
+### AuthNotifier Class
+
+The `AuthNotifier` extends `StateNotifier<AuthStatus>` to manage authentication state (lib/providers/auth_provider.dart:7-69):
+
+```dart
+class AuthNotifier extends StateNotifier<AuthStatus> {
+  AuthNotifier() : super(AuthStatus.unknown);
+
+  // Session management
+  Future<void> checkToken() async {
+    final token = await AuthService.getSavedToken();
+    if (token != null) {
+      ApiService.setAuthToken(token);
+      state = AuthStatus.authenticated;
+    } else {
+      state = AuthStatus.unauthenticated;
+    }
+  }
+
+  Future<void> logout() async {
+    await AuthService.logout();
+    state = AuthStatus.unauthenticated;
+  }
+
+  // Login method
+  Future<String?> login(String email, String password) async {
+    if (email.trim().isEmpty || password.isEmpty) {
+      return 'Please fill out all fields';
+    }
+    final token = await AuthService.login(email.trim(), password);
+    if (token != null) {
+      state = AuthStatus.authenticated;
+      return null;
+    }
+    return 'Credenciales incorrectas';
+  }
+
+  // Register method
+  Future<String?> register(
+    String firstName,
+    String lastName,
+    String email,
+    String password,
+  ) async {
+    if (firstName.trim().isEmpty ||
+        lastName.trim().isEmpty ||
+        email.trim().isEmpty ||
+        password.isEmpty) {
+      return 'Please fill out all fields';
+    }
+    final token = await AuthService.register(
+      firstName,
+      lastName,
+      email,
+      password,
+    );
+    if (token != null) {
+      state = AuthStatus.authenticated;
+      return null;
+    }
+    return 'Registration failed. Please try again.';
+  }
+}
+```
+
+### Key Features
+
+#### State Transitions
+
+State changes are explicit and controlled:
+
+```dart
+state = AuthStatus.authenticated;  // Updates state and notifies listeners
+```
+
+When state changes, all widgets watching the provider automatically rebuild.
+
+#### Error Handling
+
+Methods return `String?` for error messages:
+- Returns `null` on success
+- Returns error message string on failure
+
+This pattern allows UI to display specific error feedback without throwing exceptions.
+
+#### Validation
+
+Input validation happens at the provider level (lib/providers/auth_provider.dart:31-33):
+
+```dart
+if (email.trim().isEmpty || password.isEmpty) {
+  return 'Please fill out all fields';
+}
+```
+
+This keeps validation logic out of UI components.
+
+## Provider Declaration
+
+The provider is declared as a global variable (lib/providers/auth_provider.dart:71-73):
+
+```dart
+final authProvider = StateNotifierProvider<AuthNotifier, AuthStatus>(
+  (ref) => AuthNotifier(),
+);
+```
+
+### Provider Types
+
+- **StateNotifierProvider**: Used for complex state with methods
+- Type parameters: `<NotifierClass, StateType>`
+- Returns a new `AuthNotifier` instance when accessed
+
+## Using Providers in UI
+
+### Reading State
+
+Access the current state in a widget:
+
+```dart
+class MyWidget extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authStatus = ref.watch(authProvider);
+    
+    return authStatus == AuthStatus.authenticated
+      ? DashboardScreen()
+      : LoginScreen();
+  }
+}
+```
+
+### Calling Methods
+
+Call provider methods from UI:
+
+```dart
+class LoginScreen extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ElevatedButton(
+      onPressed: () async {
+        final error = await ref.read(authProvider.notifier).login(
+          emailController.text,
+          passwordController.text,
+        );
+        if (error != null) {
+          // Show error message
+        }
+      },
+      child: Text('Login'),
+    );
+  }
+}
+```
+
+### Key Differences
+
+- **ref.watch()**: Rebuilds widget when state changes (use in build method)
+- **ref.read()**: One-time read without listening (use in callbacks)
+- **ref.read().notifier**: Access the notifier to call methods
+
+## StateNotifier Pattern
+
+### Benefits
+
+1. **Immutability**: State is immutable, changes create new state
+2. **Type Safety**: Compile-time checking of state types
+3. **Testability**: Easy to test without Flutter dependencies
+4. **Separation**: Logic separated from UI
+5. **Performance**: Only rebuilds widgets watching changed providers
+
+### Best Practices
+
+#### Keep State Simple
+
+Use enums or simple classes for state. Complex state should be broken into multiple providers.
+
+```dart
+// Good: Simple enum
+enum AuthStatus { unknown, authenticated, unauthenticated }
+
+// Avoid: Complex nested objects as state
+class ComplexState {
+  final User? user;
+  final List<Project> projects;
+  final Map<String, dynamic> settings;
+  // Too much in one state
+}
+```
+
+#### Delegate to Services
+
+Providers should delegate business logic to services (lib/providers/auth_provider.dart:34):
+
+```dart
+// Provider calls service
+final token = await AuthService.login(email.trim(), password);
+```
+
+This keeps providers focused on state management.
+
+#### Return Results, Not Throws
+
+Return error messages instead of throwing exceptions:
+
+```dart
+// Good
+Future<String?> login(String email, String password) async {
+  if (email.isEmpty) return 'Email required';
+  // ...
+  return null; // Success
+}
+
+// Avoid
+Future<void> login(String email, String password) async {
+  if (email.isEmpty) throw Exception('Email required');
+  // Forces UI to handle try-catch
+}
+```
+
+## Global State Management
+
+### Current Global State
+
+FSD Movil currently manages authentication globally:
+
+- **authProvider**: Authentication status and operations
+
+### Future Global State
+
+As the app grows, additional global providers may include:
+
+- **workspaceProvider**: Current workspace context
+- **projectProvider**: Active project and documents
+- **themeProvider**: UI theme preferences
+- **settingsProvider**: App settings and preferences
+
+### Provider Composition
+
+Providers can depend on other providers:
+
+```dart
+final projectProvider = StateNotifierProvider<ProjectNotifier, ProjectState>(
+  (ref) {
+    // Access auth state
+    final authStatus = ref.watch(authProvider);
+    return ProjectNotifier(authStatus);
+  },
+);
+```
+
+## Testing State
+
+### Unit Testing Notifiers
+
+```dart
+void main() {
+  test('login updates state to authenticated on success', () async {
+    final notifier = AuthNotifier();
+    
+    // Mock AuthService.login to return a token
+    final error = await notifier.login('test@example.com', 'password');
+    
+    expect(error, isNull);
+    expect(notifier.state, AuthStatus.authenticated);
+  });
+}
+```
+
+### Provider Override
+
+Override providers in tests:
+
+```dart
+testWidgets('shows dashboard when authenticated', (tester) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        authProvider.overrideWith((ref) => AuthStatus.authenticated),
+      ],
+      child: MyApp(),
+    ),
+  );
+  
+  expect(find.byType(DashboardScreen), findsOneWidget);
+});
+```
+
+## Next Steps
+
+- Explore [Routing](/development/routing) with navigation guards
+- Learn [API Integration](/development/api-integration) patterns
+- Review [Architecture](/development/architecture) overview

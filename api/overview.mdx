@@ -1,0 +1,120 @@
+---
+title: API Overview
+description: Introduction to the FSD Movil REST API
+---
+
+## Base URL
+
+The FSD Movil API is a RESTful API that uses JSON for request and response payloads.
+
+```
+Base URL: Configured via API_URL environment variable
+Default (Android Emulator): http://10.0.2.2:3000
+```
+
+The base URL is configured at build time using the `--dart-define=API_URL` flag and is compiled into the application binary.
+
+## API Architecture
+
+The API follows a hierarchical data model:
+
+```
+User → Workspace → Project → Document (SRS) → Revision
+```
+
+- **Users** can belong to multiple workspaces
+- **Workspaces** contain multiple projects with role-based access control
+- **Projects** contain SRS documents and requirements
+- **Documents** have version control through revisions
+
+## Request Format
+
+All API requests must include:
+
+- **Content-Type**: `application/json` header
+- **Authorization**: `Bearer {token}` header (except for login/register endpoints)
+
+```json
+{
+  "Content-Type": "application/json",
+  "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+## Response Format
+
+All responses are returned in JSON format with appropriate HTTP status codes:
+
+- **200 OK**: Successful GET request
+- **201 Created**: Successful POST request creating a resource
+- **204 No Content**: Successful DELETE request
+- **400 Bad Request**: Invalid request parameters
+- **401 Unauthorized**: Missing or invalid authentication token
+- **403 Forbidden**: Insufficient permissions
+- **404 Not Found**: Resource not found
+- **500 Internal Server Error**: Server error
+
+## Timeouts
+
+The client is configured with the following timeout values:
+
+<ParamField path="connectTimeout" type="integer" default="10">
+  Connection timeout in seconds
+</ParamField>
+
+<ParamField path="receiveTimeout" type="integer" default="10">
+  Response receive timeout in seconds
+</ParamField>
+
+## Error Handling
+
+Error responses follow a consistent structure:
+
+```json
+{
+  "error": "Error message describing what went wrong",
+  "code": "ERROR_CODE",
+  "statusCode": 400
+}
+```
+
+## Common Patterns
+
+### List Endpoints
+
+Endpoints that return lists of resources (e.g., `/workspaces`, `/projects`) typically return an array:
+
+```json
+[
+  {
+    "id": "1",
+    "name": "Resource Name",
+    ...
+  },
+  ...
+]
+```
+
+### Detail Endpoints
+
+Endpoints that return a single resource (e.g., `/workspaces/:id`) return an object:
+
+```json
+{
+  "id": "1",
+  "name": "Resource Name",
+  ...
+}
+```
+
+### Resource Identifiers
+
+All resource IDs are strings and should be URL-encoded when used in path parameters.
+
+## Rate Limiting
+
+Currently, there are no enforced rate limits on the API. This may change in future versions.
+
+## Versioning
+
+The API is currently unversioned. Breaking changes will be communicated through release notes.

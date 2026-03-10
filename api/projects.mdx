@@ -1,0 +1,381 @@
+---
+title: Projects
+description: Project management endpoints for organizing SRS documents
+---
+
+## Overview
+
+Projects belong to workspaces and contain SRS documents, requirements, and related artifacts. Users access projects through their workspace membership.
+
+<Note>
+All project endpoints require authentication via the `Authorization: Bearer {token}` header.
+</Note>
+
+---
+
+## GET /projects
+
+Retrieve all projects the authenticated user has access to across all workspaces.
+
+### Request
+
+No request parameters required. Returns projects based on user's workspace memberships.
+
+### Response
+
+Returns an array of project objects.
+
+<ResponseField name="id" type="string" required>
+  Unique project identifier
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Project name
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Project description (optional)
+</ResponseField>
+
+<ResponseField name="workspaceId" type="string" required>
+  Identifier of the workspace this project belongs to
+</ResponseField>
+
+<ResponseField name="workspaceName" type="string" required>
+  Name of the workspace this project belongs to
+</ResponseField>
+
+<ResponseField name="documentCount" type="integer" required>
+  Number of SRS documents in this project
+</ResponseField>
+
+<ResponseField name="requirementCount" type="integer" required>
+  Total number of requirements across all documents
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Project status: `active`, `archived`, or `completed`
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" required>
+  ISO 8601 timestamp of project creation
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string" required>
+  ISO 8601 timestamp of last project update
+</ResponseField>
+
+### Response Example
+
+```json
+[
+  {
+    "id": "proj_1",
+    "name": "FSD Movil",
+    "description": "Mobile platform for project management and SRS documentation",
+    "workspaceId": "ws_1",
+    "workspaceName": "Mobile Development Team",
+    "documentCount": 5,
+    "requirementCount": 47,
+    "status": "active",
+    "createdAt": "2024-01-12T11:00:00Z",
+    "updatedAt": "2024-03-09T15:45:00Z"
+  },
+  {
+    "id": "proj_2",
+    "name": "E-Commerce App",
+    "description": "Online shopping mobile application",
+    "workspaceId": "ws_1",
+    "workspaceName": "Mobile Development Team",
+    "documentCount": 8,
+    "requirementCount": 92,
+    "status": "active",
+    "createdAt": "2024-02-05T09:30:00Z",
+    "updatedAt": "2024-03-08T10:20:00Z"
+  },
+  {
+    "id": "proj_3",
+    "name": "Legacy System Migration",
+    "description": "Migration from old backend to new architecture",
+    "workspaceId": "ws_2",
+    "workspaceName": "Client Projects",
+    "documentCount": 12,
+    "requirementCount": 156,
+    "status": "completed",
+    "createdAt": "2023-10-15T08:00:00Z",
+    "updatedAt": "2024-01-30T17:00:00Z"
+  }
+]
+```
+
+### Error Responses
+
+<Expandable title="401 Unauthorized">
+```json
+{
+  "error": "Invalid or expired token",
+  "code": "UNAUTHORIZED",
+  "statusCode": 401
+}
+```
+</Expandable>
+
+### Implementation Example
+
+```dart
+final response = await ApiService.dio.get(ApiRoutes.projects);
+final projects = response.data as List;
+```
+
+---
+
+## GET /projects/:id
+
+Retrieve detailed information about a specific project.
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  Project identifier
+</ParamField>
+
+### Request Example
+
+```
+GET /projects/proj_1
+```
+
+### Response
+
+<ResponseField name="id" type="string" required>
+  Unique project identifier
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Project name
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Project description (optional)
+</ResponseField>
+
+<ResponseField name="workspaceId" type="string" required>
+  Identifier of the workspace this project belongs to
+</ResponseField>
+
+<ResponseField name="workspaceName" type="string" required>
+  Name of the workspace this project belongs to
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Project status: `active`, `archived`, or `completed`
+</ResponseField>
+
+<ResponseField name="documents" type="array" required>
+  Array of SRS documents in this project
+  
+  <Expandable title="Document Object Structure">
+    <ResponseField name="id" type="string" required>
+      Document identifier
+    </ResponseField>
+    
+    <ResponseField name="title" type="string" required>
+      Document title
+    </ResponseField>
+    
+    <ResponseField name="version" type="string" required>
+      Current document version (e.g., "1.0.0")
+    </ResponseField>
+    
+    <ResponseField name="status" type="string" required>
+      Document status: `draft`, `review`, `approved`, or `published`
+    </ResponseField>
+    
+    <ResponseField name="requirementCount" type="integer" required>
+      Number of requirements in this document
+    </ResponseField>
+    
+    <ResponseField name="lastModifiedBy" type="string" required>
+      Name of user who last modified the document
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string" required>
+      ISO 8601 timestamp of document creation
+    </ResponseField>
+    
+    <ResponseField name="updatedAt" type="string" required>
+      ISO 8601 timestamp of last document update
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="collaborators" type="array" required>
+  Array of users who have contributed to this project
+  
+  <Expandable title="Collaborator Object Structure">
+    <ResponseField name="id" type="string" required>
+      User identifier
+    </ResponseField>
+    
+    <ResponseField name="firstName" type="string" required>
+      User's first name
+    </ResponseField>
+    
+    <ResponseField name="lastName" type="string" required>
+      User's last name
+    </ResponseField>
+    
+    <ResponseField name="email" type="string" required>
+      User's email address
+    </ResponseField>
+    
+    <ResponseField name="lastActivity" type="string" required>
+      ISO 8601 timestamp of user's last activity in this project
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="createdBy" type="object" required>
+  Information about the user who created the project
+  
+  <Expandable title="Creator Object Structure">
+    <ResponseField name="id" type="string" required>
+      User identifier
+    </ResponseField>
+    
+    <ResponseField name="firstName" type="string" required>
+      User's first name
+    </ResponseField>
+    
+    <ResponseField name="lastName" type="string" required>
+      User's last name
+    </ResponseField>
+    
+    <ResponseField name="email" type="string" required>
+      User's email address
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" required>
+  ISO 8601 timestamp of project creation
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string" required>
+  ISO 8601 timestamp of last project update
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "id": "proj_1",
+  "name": "FSD Movil",
+  "description": "Mobile platform for project management and SRS documentation generation",
+  "workspaceId": "ws_1",
+  "workspaceName": "Mobile Development Team",
+  "status": "active",
+  "documents": [
+    {
+      "id": "doc_1",
+      "title": "System Requirements Specification v1.0",
+      "version": "1.0.0",
+      "status": "approved",
+      "requirementCount": 23,
+      "lastModifiedBy": "John Doe",
+      "createdAt": "2024-01-15T10:00:00Z",
+      "updatedAt": "2024-02-20T14:30:00Z"
+    },
+    {
+      "id": "doc_2",
+      "title": "API Documentation Requirements",
+      "version": "1.1.0",
+      "status": "review",
+      "requirementCount": 15,
+      "lastModifiedBy": "Jane Smith",
+      "createdAt": "2024-02-01T09:00:00Z",
+      "updatedAt": "2024-03-05T11:15:00Z"
+    },
+    {
+      "id": "doc_3",
+      "title": "Security Requirements",
+      "version": "0.9.0",
+      "status": "draft",
+      "requirementCount": 9,
+      "lastModifiedBy": "Bob Johnson",
+      "createdAt": "2024-03-01T13:00:00Z",
+      "updatedAt": "2024-03-09T15:45:00Z"
+    }
+  ],
+  "collaborators": [
+    {
+      "id": "user_123",
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "[email protected]",
+      "lastActivity": "2024-03-09T16:20:00Z"
+    },
+    {
+      "id": "user_456",
+      "firstName": "Jane",
+      "lastName": "Smith",
+      "email": "[email protected]",
+      "lastActivity": "2024-03-08T10:15:00Z"
+    },
+    {
+      "id": "user_789",
+      "firstName": "Bob",
+      "lastName": "Johnson",
+      "email": "[email protected]",
+      "lastActivity": "2024-03-09T15:45:00Z"
+    }
+  ],
+  "createdBy": {
+    "id": "user_123",
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "[email protected]"
+  },
+  "createdAt": "2024-01-12T11:00:00Z",
+  "updatedAt": "2024-03-09T15:45:00Z"
+}
+```
+
+### Error Responses
+
+<Expandable title="401 Unauthorized">
+```json
+{
+  "error": "Invalid or expired token",
+  "code": "UNAUTHORIZED",
+  "statusCode": 401
+}
+```
+</Expandable>
+
+<Expandable title="403 Forbidden">
+```json
+{
+  "error": "You do not have access to this project",
+  "code": "FORBIDDEN",
+  "statusCode": 403
+}
+```
+</Expandable>
+
+<Expandable title="404 Not Found">
+```json
+{
+  "error": "Project not found",
+  "code": "PROJECT_NOT_FOUND",
+  "statusCode": 404
+}
+```
+</Expandable>
+
+### Implementation Example
+
+```dart
+final response = await ApiService.dio.get(ApiRoutes.project('proj_1'));
+final project = response.data as Map<String, dynamic>;
+```

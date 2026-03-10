@@ -1,0 +1,504 @@
+---
+title: Build & Deployment
+description: Build and deploy FSD Movil for Android, iOS, Web, and Windows
+---
+
+FSD Movil supports multiple platforms through Flutter's cross-platform framework. This guide covers building production-ready binaries with proper API configuration for each target platform.
+
+<Warning>
+  **Critical:** Always include `--dart-define=API_URL=...` in production builds. Without it, the app will use the default emulator URL (`http://10.0.2.2:3000`) and fail in production.
+</Warning>
+
+## Build Prerequisites
+
+<Steps>
+  <Step title="Clean Build Environment">
+    Before building for production, clean previous build artifacts:
+
+    ```bash
+    flutter clean
+    flutter pub get
+    ```
+  </Step>
+
+  <Step title="Verify Configuration">
+    Ensure your production API URL is ready. Example:
+
+    ```bash
+    # Test the URL is accessible
+    curl https://api.fsdmovil.com/health
+    ```
+  </Step>
+
+  <Step title="Run Code Analysis">
+    Check for errors before building:
+
+    ```bash
+    flutter analyze
+    ```
+  </Step>
+</Steps>
+
+## Android Builds
+
+### App Bundle (Google Play Store)
+
+The recommended format for Google Play Console:
+
+```bash
+flutter build appbundle \
+  --dart-define=API_URL=https://api.fsdmovil.com \
+  --release
+```
+
+**Output location:** `build/app/outputs/bundle/release/app-release.aab`
+
+<Tip>
+  App Bundles allow Google Play to generate optimized APKs for each device configuration, reducing download size.
+</Tip>
+
+### APK (Direct Distribution)
+
+For direct installation outside the Play Store:
+
+<CodeGroup>
+```bash Universal APK
+flutter build apk \
+  --dart-define=API_URL=https://api.fsdmovil.com \
+  --release
+```
+
+```bash Split APKs by ABI
+flutter build apk \
+  --dart-define=API_URL=https://api.fsdmovil.com \
+  --split-per-abi \
+  --release
+```
+</CodeGroup>
+
+**Output location:** `build/app/outputs/flutter-apk/app-release.apk`
+
+<AccordionGroup>
+  <Accordion title="APK vs App Bundle" icon="circle-question">
+    | Format | Use Case | Size | Distribution |
+    |--------|----------|------|-------------|
+    | **AAB** | Google Play Store | Optimized per device | Play Console only |
+    | **APK** | Direct distribution | Larger (universal) | Email, web, USB |
+    | **Split APK** | Direct distribution | Smaller (per ABI) | Advanced users |
+  </Accordion>
+
+  <Accordion title="Version Configuration" icon="code-branch">
+    Version is defined in `pubspec.yaml:19`:
+
+    ```yaml pubspec.yaml
+    version: 1.0.0+1
+    ```
+
+    - `1.0.0` = `versionName` (visible to users)
+    - `+1` = `versionCode` (internal build number)
+
+    Increment the build number for each release:
+    ```yaml
+    version: 1.0.0+2  # Second build
+    version: 1.0.1+3  # Bug fix release
+    version: 1.1.0+4  # Feature release
+    ```
+  </Accordion>
+
+  <Accordion title="Code Signing" icon="signature">
+    For production builds, configure signing in `android/app/build.gradle`:
+
+    ```gradle
+    signingConfigs {
+        release {
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            storePassword keystoreProperties['storePassword']
+        }
+    }
+    ```
+
+    Create `android/key.properties` (never commit this file):
+    ```properties
+    storePassword=your_keystore_password
+    keyPassword=your_key_password
+    keyAlias=your_key_alias
+    storeFile=path/to/keystore.jks
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## iOS Builds
+
+<Warning>
+  iOS builds require macOS with Xcode installed and an Apple Developer account ($99/year).
+</Warning>
+
+### App Store Build
+
+```bash
+flutter build ipa \
+  --dart-define=API_URL=https://api.fsdmovil.com \
+  --release
+```
+
+**Output location:** `build/ios/ipa/fsdmovil.ipa`
+
+<Steps>
+  <Step title="Configure Signing">
+    Open `ios/Runner.xcworkspace` in Xcode:
+    1. Select "Runner" target
+    2. Go to "Signing & Capabilities"
+    3. Select your Team
+    4. Configure Bundle Identifier (e.g., `com.fsdmovil.app`)
+  </Step>
+
+  <Step title="Archive and Upload">
+    After building the IPA, upload to App Store Connect:
+    
+    ```bash
+    xcrun altool --upload-app \
+      --type ios \
+      --file build/ios/ipa/fsdmovil.ipa \
+      --apiKey YOUR_API_KEY \
+      --apiIssuer YOUR_ISSUER_ID
+    ```
+
+    Or use Xcode's "Distribute App" wizard.
+  </Step>
+</Steps>
+
+## Web Builds
+
+Build for web deployment (Firebase Hosting, Netlify, Vercel, etc.):
+
+```bash
+flutter build web \
+  --dart-define=API_URL=https://api.fsdmovil.com \
+  --release \
+  --web-renderer canvaskit
+```
+
+**Output location:** `build/web/`
+
+### Web Renderer Options
+
+<CodeGroup>
+```bash CanvasKit (Default)
+flutter build web \
+  --dart-define=API_URL=https://api.fsdmovil.com \
+  --web-renderer canvaskit
+```
+
+```bash HTML Renderer
+flutter build web \
+  --dart-define=API_URL=https://api.fsdmovil.com \
+  --web-renderer html
+```
+
+```bash Auto Renderer
+flutter build web \
+  --dart-define=API_URL=https://api.fsdmovil.com \
+  --web-renderer auto
+```
+</CodeGroup>
+
+| Renderer | Performance | Size | Compatibility |
+|----------|-------------|------|---------------|
+| **canvaskit** | High fidelity, consistent | ~2MB larger | Modern browsers |
+| **html** | Faster initial load | Smaller | All browsers |
+| **auto** | Adaptive | Varies | Best of both |
+
+### Deploy to Firebase Hosting
+
+<Steps>
+  <Step title="Install Firebase CLI">
+    ```bash
+    npm install -g firebase-tools
+    firebase login
+    ```
+  </Step>
+
+  <Step title="Initialize Firebase">
+    ```bash
+    firebase init hosting
+    ```
+
+    Configure:
+    - Public directory: `build/web`
+    - Single-page app: `Yes`
+    - Overwrites: `No`
+  </Step>
+
+  <Step title="Deploy">
+    ```bash
+    flutter build web --dart-define=API_URL=https://api.fsdmovil.com --release
+    firebase deploy --only hosting
+    ```
+  </Step>
+</Steps>
+
+## Windows Builds
+
+Build a native Windows executable:
+
+```bash
+flutter build windows \
+  --dart-define=API_URL=https://api.fsdmovil.com \
+  --release
+```
+
+**Output location:** `build/windows/x64/runner/Release/`
+
+<Info>
+  The output folder contains:
+  - `fsdmovil.exe` - Main executable
+  - DLL files - Required runtime libraries
+  - `data/` folder - Flutter assets
+
+  Distribute the entire `Release/` folder.
+</Info>
+
+### Create Windows Installer
+
+Use [Inno Setup](https://jrsoftware.org/isinfo.php) to create an installer:
+
+```iss installer.iss
+[Setup]
+AppName=FSD Movil
+AppVersion=1.0.0
+DefaultDirName={pf}\FSD Movil
+DefaultGroupName=FSD Movil
+OutputDir=build\windows\installer
+OutputBaseFilename=fsdmovil-setup
+
+[Files]
+Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: recursesubdirs
+
+[Icons]
+Name: "{group}\FSD Movil"; Filename: "{app}\fsdmovil.exe"
+```
+
+Build the installer:
+```bash
+iscc installer.iss
+```
+
+## macOS Builds
+
+<Warning>
+  macOS builds require a Mac with Xcode installed.
+</Warning>
+
+```bash
+flutter build macos \
+  --dart-define=API_URL=https://api.fsdmovil.com \
+  --release
+```
+
+**Output location:** `build/macos/Build/Products/Release/fsdmovil.app`
+
+## Linux Builds
+
+```bash
+flutter build linux \
+  --dart-define=API_URL=https://api.fsdmovil.com \
+  --release
+```
+
+**Output location:** `build/linux/x64/release/bundle/`
+
+## Multi-Environment Builds
+
+Create build scripts for different environments:
+
+<CodeGroup>
+```bash build-dev.sh
+#!/bin/bash
+flutter build apk \
+  --dart-define=API_URL=https://dev-api.fsdmovil.com \
+  --flavor dev \
+  --release
+```
+
+```bash build-staging.sh
+#!/bin/bash
+flutter build apk \
+  --dart-define=API_URL=https://staging-api.fsdmovil.com \
+  --flavor staging \
+  --release
+```
+
+```bash build-prod.sh
+#!/bin/bash
+flutter build apk \
+  --dart-define=API_URL=https://api.fsdmovil.com \
+  --release
+```
+</CodeGroup>
+
+Make executable and run:
+```bash
+chmod +x build-prod.sh
+./build-prod.sh
+```
+
+## Build Optimization
+
+### Reduce APK Size
+
+<Steps>
+  <Step title="Enable R8/ProGuard">
+    In `android/app/build.gradle`:
+
+    ```gradle
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    ```
+  </Step>
+
+  <Step title="Split by ABI">
+    ```bash
+    flutter build apk --split-per-abi
+    ```
+
+    Generates separate APKs:
+    - `app-armeabi-v7a-release.apk` (32-bit ARM)
+    - `app-arm64-v8a-release.apk` (64-bit ARM)
+    - `app-x86_64-release.apk` (64-bit Intel)
+  </Step>
+
+  <Step title="Analyze Build Size">
+    ```bash
+    flutter build apk --analyze-size
+    ```
+
+    Generates a detailed size analysis.
+  </Step>
+</Steps>
+
+### Tree Shaking
+
+Flutter automatically removes unused code in release builds. Ensure you're using:
+
+```dart
+import 'package:flutter/material.dart';
+// ✅ Good - specific imports
+
+import 'package:flutter/widgets.dart';
+// ❌ Avoid - imports entire library
+```
+
+## Continuous Integration
+
+Example GitHub Actions workflow:
+
+```yaml .github/workflows/build.yml
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.10.8'
+      
+      - name: Install dependencies
+        run: flutter pub get
+      
+      - name: Run tests
+        run: flutter test
+      
+      - name: Build APK
+        run: |
+          flutter build apk \
+            --dart-define=API_URL=${{ secrets.API_URL }} \
+            --release
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Build fails with 'API_URL not set'" icon="triangle-exclamation">
+    **Problem:** The app crashes because `AppConfig.baseUrl` is `http://10.0.2.2:3000` in production.
+
+    **Solution:** Always include `--dart-define=API_URL=...` in your build command.
+  </Accordion>
+
+  <Accordion title="Android build fails with signing error" icon="key">
+    **Problem:** Release builds require code signing.
+
+    **Solution:** Configure `android/key.properties` or build with `--debug` flag for testing.
+  </Accordion>
+
+  <Accordion title="iOS build fails on non-Mac machine" icon="apple">
+    **Problem:** iOS builds require macOS and Xcode.
+
+    **Solution:** Use a Mac, cloud Mac service (e.g., MacStadium), or CI/CD with macOS runners.
+  </Accordion>
+
+  <Accordion title="Web build shows blank page" icon="browser">
+    **Problem:** CORS issues or incorrect base URL.
+
+    **Solution:** 
+    1. Ensure API has proper CORS headers
+    2. Verify `--dart-define=API_URL` is set correctly
+    3. Check browser console for errors
+  </Accordion>
+</AccordionGroup>
+
+## Deployment Checklist
+
+<Steps>
+  <Step title="Pre-Deployment">
+    - [ ] Update version in `pubspec.yaml`
+    - [ ] Run `flutter analyze` (no errors)
+    - [ ] Run `flutter test` (all tests pass)
+    - [ ] Clean build directory (`flutter clean`)
+    - [ ] Verify API_URL points to production
+  </Step>
+
+  <Step title="Build">
+    - [ ] Build with `--dart-define=API_URL=...`
+    - [ ] Test the build on physical device
+    - [ ] Verify all features work
+    - [ ] Check app connects to production API
+  </Step>
+
+  <Step title="Release">
+    - [ ] Upload to store/hosting
+    - [ ] Add release notes
+    - [ ] Tag release in Git (`git tag v1.0.0`)
+    - [ ] Monitor crash reports
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Setup" icon="gear" href="/configuration/environment-setup">
+    Configure development environments
+  </Card>
+  <Card title="API Configuration" icon="server" href="/configuration/api-configuration">
+    Understand API client configuration
+  </Card>
+</CardGroup>

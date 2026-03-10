@@ -1,0 +1,625 @@
+---
+title: Documents
+description: SRS document management and revision control endpoints
+---
+
+## Overview
+
+Documents represent SRS (Software Requirements Specification) documentation within projects. Each document supports:
+
+- Structured content with requirements
+- Version control through revisions
+- Collaboration with approval workflows
+- Export to DOCX format
+- Automatic diagram generation (Mermaid)
+
+<Note>
+All document endpoints require authentication via the `Authorization: Bearer {token}` header.
+</Note>
+
+---
+
+## GET /documents
+
+Retrieve all documents the authenticated user has access to across all projects.
+
+### Request
+
+No request parameters required. Returns documents based on user's workspace/project access.
+
+### Response
+
+Returns an array of document objects.
+
+<ResponseField name="id" type="string" required>
+  Unique document identifier
+</ResponseField>
+
+<ResponseField name="title" type="string" required>
+  Document title
+</ResponseField>
+
+<ResponseField name="version" type="string" required>
+  Current document version (e.g., "1.0.0")
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Document status: `draft`, `review`, `approved`, or `published`
+</ResponseField>
+
+<ResponseField name="projectId" type="string" required>
+  Identifier of the project this document belongs to
+</ResponseField>
+
+<ResponseField name="projectName" type="string" required>
+  Name of the project this document belongs to
+</ResponseField>
+
+<ResponseField name="workspaceId" type="string" required>
+  Identifier of the workspace (via project)
+</ResponseField>
+
+<ResponseField name="requirementCount" type="integer" required>
+  Number of requirements in this document
+</ResponseField>
+
+<ResponseField name="revisionCount" type="integer" required>
+  Number of revisions (version history)
+</ResponseField>
+
+<ResponseField name="lastModifiedBy" type="string" required>
+  Name of user who last modified the document
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" required>
+  ISO 8601 timestamp of document creation
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string" required>
+  ISO 8601 timestamp of last document update
+</ResponseField>
+
+### Response Example
+
+```json
+[
+  {
+    "id": "doc_1",
+    "title": "System Requirements Specification v1.0",
+    "version": "1.0.0",
+    "status": "approved",
+    "projectId": "proj_1",
+    "projectName": "FSD Movil",
+    "workspaceId": "ws_1",
+    "requirementCount": 23,
+    "revisionCount": 8,
+    "lastModifiedBy": "John Doe",
+    "createdAt": "2024-01-15T10:00:00Z",
+    "updatedAt": "2024-02-20T14:30:00Z"
+  },
+  {
+    "id": "doc_2",
+    "title": "API Documentation Requirements",
+    "version": "1.1.0",
+    "status": "review",
+    "projectId": "proj_1",
+    "projectName": "FSD Movil",
+    "workspaceId": "ws_1",
+    "requirementCount": 15,
+    "revisionCount": 5,
+    "lastModifiedBy": "Jane Smith",
+    "createdAt": "2024-02-01T09:00:00Z",
+    "updatedAt": "2024-03-05T11:15:00Z"
+  },
+  {
+    "id": "doc_3",
+    "title": "Security Requirements",
+    "version": "0.9.0",
+    "status": "draft",
+    "projectId": "proj_1",
+    "projectName": "FSD Movil",
+    "workspaceId": "ws_1",
+    "requirementCount": 9,
+    "revisionCount": 2,
+    "lastModifiedBy": "Bob Johnson",
+    "createdAt": "2024-03-01T13:00:00Z",
+    "updatedAt": "2024-03-09T15:45:00Z"
+  }
+]
+```
+
+### Error Responses
+
+<Expandable title="401 Unauthorized">
+```json
+{
+  "error": "Invalid or expired token",
+  "code": "UNAUTHORIZED",
+  "statusCode": 401
+}
+```
+</Expandable>
+
+### Implementation Example
+
+```dart
+final response = await ApiService.dio.get(ApiRoutes.documents);
+final documents = response.data as List;
+```
+
+---
+
+## GET /documents/:id
+
+Retrieve detailed information about a specific document including its content and requirements.
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  Document identifier
+</ParamField>
+
+### Request Example
+
+```
+GET /documents/doc_1
+```
+
+### Response
+
+<ResponseField name="id" type="string" required>
+  Unique document identifier
+</ResponseField>
+
+<ResponseField name="title" type="string" required>
+  Document title
+</ResponseField>
+
+<ResponseField name="version" type="string" required>
+  Current document version (e.g., "1.0.0")
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Document status: `draft`, `review`, `approved`, or `published`
+</ResponseField>
+
+<ResponseField name="projectId" type="string" required>
+  Identifier of the project this document belongs to
+</ResponseField>
+
+<ResponseField name="projectName" type="string" required>
+  Name of the project this document belongs to
+</ResponseField>
+
+<ResponseField name="introduction" type="string">
+  Document introduction/overview text
+</ResponseField>
+
+<ResponseField name="purpose" type="string">
+  Purpose section content
+</ResponseField>
+
+<ResponseField name="scope" type="string">
+  Scope section content
+</ResponseField>
+
+<ResponseField name="requirements" type="array" required>
+  Array of requirements in this document
+  
+  <Expandable title="Requirement Object Structure">
+    <ResponseField name="id" type="string" required>
+      Requirement identifier
+    </ResponseField>
+    
+    <ResponseField name="code" type="string" required>
+      Requirement code (e.g., "FR-001", "NFR-005")
+    </ResponseField>
+    
+    <ResponseField name="type" type="string" required>
+      Requirement type: `functional`, `non-functional`, `constraint`, or `interface`
+    </ResponseField>
+    
+    <ResponseField name="priority" type="string" required>
+      Priority level: `critical`, `high`, `medium`, or `low`
+    </ResponseField>
+    
+    <ResponseField name="title" type="string" required>
+      Brief requirement title
+    </ResponseField>
+    
+    <ResponseField name="description" type="string" required>
+      Detailed requirement description
+    </ResponseField>
+    
+    <ResponseField name="status" type="string" required>
+      Requirement status: `pending`, `approved`, `implemented`, or `rejected`
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string" required>
+      ISO 8601 timestamp of requirement creation
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="diagrams" type="object">
+  Auto-generated Mermaid diagrams
+  
+  <Expandable title="Diagrams Object Structure">
+    <ResponseField name="sequence" type="string">
+      Mermaid sequence diagram definition
+    </ResponseField>
+    
+    <ResponseField name="entityRelationship" type="string">
+      Mermaid entity-relationship diagram definition
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="createdBy" type="object" required>
+  Information about the user who created the document
+  
+  <Expandable title="Creator Object Structure">
+    <ResponseField name="id" type="string" required>
+      User identifier
+    </ResponseField>
+    
+    <ResponseField name="firstName" type="string" required>
+      User's first name
+    </ResponseField>
+    
+    <ResponseField name="lastName" type="string" required>
+      User's last name
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="lastModifiedBy" type="object" required>
+  Information about the user who last modified the document
+  
+  <Expandable title="Modifier Object Structure">
+    <ResponseField name="id" type="string" required>
+      User identifier
+    </ResponseField>
+    
+    <ResponseField name="firstName" type="string" required>
+      User's first name
+    </ResponseField>
+    
+    <ResponseField name="lastName" type="string" required>
+      User's last name
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" required>
+  ISO 8601 timestamp of document creation
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string" required>
+  ISO 8601 timestamp of last document update
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "id": "doc_1",
+  "title": "System Requirements Specification v1.0",
+  "version": "1.0.0",
+  "status": "approved",
+  "projectId": "proj_1",
+  "projectName": "FSD Movil",
+  "introduction": "This document specifies the software requirements for the FSD Movil platform, a comprehensive project management and SRS documentation generation system.",
+  "purpose": "To define functional and non-functional requirements for developers, stakeholders, and QA teams.",
+  "scope": "The system covers project management, document generation, collaboration features, and export capabilities.",
+  "requirements": [
+    {
+      "id": "req_1",
+      "code": "FR-001",
+      "type": "functional",
+      "priority": "critical",
+      "title": "User Authentication",
+      "description": "The system shall provide JWT-based authentication for all users with email and password credentials.",
+      "status": "implemented",
+      "createdAt": "2024-01-15T10:30:00Z"
+    },
+    {
+      "id": "req_2",
+      "code": "FR-002",
+      "type": "functional",
+      "priority": "high",
+      "title": "Workspace Management",
+      "description": "Users shall be able to create, edit, and delete workspaces with role-based access control.",
+      "status": "approved",
+      "createdAt": "2024-01-15T11:00:00Z"
+    },
+    {
+      "id": "req_3",
+      "code": "NFR-001",
+      "type": "non-functional",
+      "priority": "high",
+      "title": "API Response Time",
+      "description": "All API endpoints shall respond within 2 seconds under normal load conditions.",
+      "status": "approved",
+      "createdAt": "2024-01-15T11:15:00Z"
+    }
+  ],
+  "diagrams": {
+    "sequence": "sequenceDiagram\n    User->>API: POST /auth/login\n    API->>Database: Verify credentials\n    Database-->>API: User data\n    API-->>User: JWT token",
+    "entityRelationship": "erDiagram\n    USER ||--o{ WORKSPACE : belongs\n    WORKSPACE ||--o{ PROJECT : contains\n    PROJECT ||--o{ DOCUMENT : has\n    DOCUMENT ||--o{ REQUIREMENT : includes"
+  },
+  "createdBy": {
+    "id": "user_123",
+    "firstName": "John",
+    "lastName": "Doe"
+  },
+  "lastModifiedBy": {
+    "id": "user_456",
+    "firstName": "Jane",
+    "lastName": "Smith"
+  },
+  "createdAt": "2024-01-15T10:00:00Z",
+  "updatedAt": "2024-02-20T14:30:00Z"
+}
+```
+
+### Error Responses
+
+<Expandable title="401 Unauthorized">
+```json
+{
+  "error": "Invalid or expired token",
+  "code": "UNAUTHORIZED",
+  "statusCode": 401
+}
+```
+</Expandable>
+
+<Expandable title="403 Forbidden">
+```json
+{
+  "error": "You do not have access to this document",
+  "code": "FORBIDDEN",
+  "statusCode": 403
+}
+```
+</Expandable>
+
+<Expandable title="404 Not Found">
+```json
+{
+  "error": "Document not found",
+  "code": "DOCUMENT_NOT_FOUND",
+  "statusCode": 404
+}
+```
+</Expandable>
+
+### Implementation Example
+
+```dart
+final response = await ApiService.dio.get(ApiRoutes.document('doc_1'));
+final document = response.data as Map<String, dynamic>;
+```
+
+---
+
+## GET /documents/:id/revisions
+
+Retrieve the revision history for a specific document, enabling version control and audit trails.
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  Document identifier
+</ParamField>
+
+### Request Example
+
+```
+GET /documents/doc_1/revisions
+```
+
+### Response
+
+Returns an array of revision objects, ordered from newest to oldest.
+
+<ResponseField name="id" type="string" required>
+  Unique revision identifier
+</ResponseField>
+
+<ResponseField name="documentId" type="string" required>
+  Identifier of the parent document
+</ResponseField>
+
+<ResponseField name="version" type="string" required>
+  Version number of this revision (e.g., "1.0.0")
+</ResponseField>
+
+<ResponseField name="changeDescription" type="string" required>
+  Description of changes made in this revision
+</ResponseField>
+
+<ResponseField name="changedBy" type="object" required>
+  Information about the user who created this revision
+  
+  <Expandable title="User Object Structure">
+    <ResponseField name="id" type="string" required>
+      User identifier
+    </ResponseField>
+    
+    <ResponseField name="firstName" type="string" required>
+      User's first name
+    </ResponseField>
+    
+    <ResponseField name="lastName" type="string" required>
+      User's last name
+    </ResponseField>
+    
+    <ResponseField name="email" type="string" required>
+      User's email address
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Status at time of this revision: `draft`, `review`, `approved`, or `published`
+</ResponseField>
+
+<ResponseField name="requirementCount" type="integer" required>
+  Number of requirements in this revision
+</ResponseField>
+
+<ResponseField name="changesCount" type="object" required>
+  Summary of changes in this revision
+  
+  <Expandable title="Changes Count Structure">
+    <ResponseField name="added" type="integer" required>
+      Number of requirements added
+    </ResponseField>
+    
+    <ResponseField name="modified" type="integer" required>
+      Number of requirements modified
+    </ResponseField>
+    
+    <ResponseField name="removed" type="integer" required>
+      Number of requirements removed
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" required>
+  ISO 8601 timestamp when this revision was created
+</ResponseField>
+
+### Response Example
+
+```json
+[
+  {
+    "id": "rev_8",
+    "documentId": "doc_1",
+    "version": "1.0.0",
+    "changeDescription": "Final approval and publication of version 1.0",
+    "changedBy": {
+      "id": "user_123",
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "[email protected]"
+    },
+    "status": "approved",
+    "requirementCount": 23,
+    "changesCount": {
+      "added": 0,
+      "modified": 2,
+      "removed": 0
+    },
+    "createdAt": "2024-02-20T14:30:00Z"
+  },
+  {
+    "id": "rev_7",
+    "documentId": "doc_1",
+    "version": "0.9.0",
+    "changeDescription": "Added security requirements and updated API specifications",
+    "changedBy": {
+      "id": "user_456",
+      "firstName": "Jane",
+      "lastName": "Smith",
+      "email": "[email protected]"
+    },
+    "status": "review",
+    "requirementCount": 23,
+    "changesCount": {
+      "added": 4,
+      "modified": 3,
+      "removed": 1
+    },
+    "createdAt": "2024-02-15T10:15:00Z"
+  },
+  {
+    "id": "rev_6",
+    "documentId": "doc_1",
+    "version": "0.8.0",
+    "changeDescription": "Updated functional requirements for workspace collaboration",
+    "changedBy": {
+      "id": "user_123",
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "[email protected]"
+    },
+    "status": "draft",
+    "requirementCount": 20,
+    "changesCount": {
+      "added": 3,
+      "modified": 5,
+      "removed": 0
+    },
+    "createdAt": "2024-02-08T09:00:00Z"
+  },
+  {
+    "id": "rev_5",
+    "documentId": "doc_1",
+    "version": "0.7.0",
+    "changeDescription": "Initial draft with core functional requirements",
+    "changedBy": {
+      "id": "user_123",
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "[email protected]"
+    },
+    "status": "draft",
+    "requirementCount": 17,
+    "changesCount": {
+      "added": 17,
+      "modified": 0,
+      "removed": 0
+    },
+    "createdAt": "2024-01-15T10:00:00Z"
+  }
+]
+```
+
+### Error Responses
+
+<Expandable title="401 Unauthorized">
+```json
+{
+  "error": "Invalid or expired token",
+  "code": "UNAUTHORIZED",
+  "statusCode": 401
+}
+```
+</Expandable>
+
+<Expandable title="403 Forbidden">
+```json
+{
+  "error": "You do not have access to this document",
+  "code": "FORBIDDEN",
+  "statusCode": 403
+}
+```
+</Expandable>
+
+<Expandable title="404 Not Found">
+```json
+{
+  "error": "Document not found",
+  "code": "DOCUMENT_NOT_FOUND",
+  "statusCode": 404
+}
+```
+</Expandable>
+
+### Implementation Example
+
+```dart
+final response = await ApiService.dio.get(
+  ApiRoutes.documentRevisions('doc_1')
+);
+final revisions = response.data as List;
+```
+
+<Info>
+Revisions provide complete audit trails for document changes, enabling teams to track evolution, revert changes, and maintain compliance with documentation standards.
+</Info>

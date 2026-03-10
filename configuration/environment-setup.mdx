@@ -1,0 +1,201 @@
+---
+title: Environment Setup
+description: Configure development and production environments for FSD Movil
+---
+
+FSD Movil uses **compile-time environment variables** via `--dart-define` to configure the backend API URL. This approach embeds configuration directly into the binary, ensuring consistency across devices without runtime dependencies.
+
+## Prerequisites
+
+Before setting up your environment, ensure you have:
+
+- Flutter SDK (3.10.8 or higher)
+- VS Code with Flutter extension (recommended)
+- Access to your backend API URL
+- An Android emulator, iOS simulator, or physical device
+
+## Development Environment
+
+<Steps>
+  <Step title="Configure VS Code Launch Settings">
+    Create a `.vscode/launch.json` file in your project root to configure environment-specific launch configurations:
+
+    ```json .vscode/launch.json
+    {
+      "version": "0.2.0",
+      "configurations": [
+        {
+          "name": "fsdmovil (dev)",
+          "request": "launch",
+          "type": "dart",
+          "args": [
+            "--dart-define=API_URL=http://localhost:3000"
+          ]
+        },
+        {
+          "name": "fsdmovil (staging)",
+          "request": "launch",
+          "type": "dart",
+          "args": [
+            "--dart-define=API_URL=https://staging-api.fsdmovil.com"
+          ]
+        },
+        {
+          "name": "fsdmovil (prod)",
+          "request": "launch",
+          "type": "dart",
+          "args": [
+            "--dart-define=API_URL=https://api.fsdmovil.com"
+          ]
+        }
+      ]
+    }
+    ```
+
+    <Warning>
+      **Important:** Add `.vscode/launch.json` to your `.gitignore`. Each team member should configure their own URLs based on their local environment.
+    </Warning>
+  </Step>
+
+  <Step title="Install Dependencies">
+    Install all required Flutter packages:
+
+    ```bash
+    flutter pub get
+    ```
+
+    This installs the core dependencies:
+    - `dio` (^5.7.0) - HTTP client
+    - `flutter_riverpod` (^2.6.1) - State management
+    - `go_router` (^14.6.2) - Navigation
+    - `shared_preferences` (^2.3.3) - Local storage for JWT tokens
+  </Step>
+
+  <Step title="Select a Device">
+    View available devices:
+
+    ```bash
+    flutter devices
+    ```
+
+    In VS Code, select your target device from the status bar (bottom-right corner).
+  </Step>
+
+  <Step title="Launch the Application">
+    **VS Code (Recommended):**
+    1. Press `F5` or click "Run > Start Debugging"
+    2. Select your launch configuration (dev, staging, or prod)
+    3. The app launches with the configured API_URL compiled into the binary
+
+    **Command Line:**
+    ```bash
+    # Chrome (Web)
+    flutter run -d chrome --dart-define=API_URL=http://localhost:3000
+
+    # Android Emulator
+    flutter run -d android --dart-define=API_URL=http://10.0.2.2:3000
+
+    # Windows
+    flutter run -d windows --dart-define=API_URL=http://localhost:3000
+    ```
+
+    <Info>
+      The default API_URL is `http://10.0.2.2:3000`, which allows Android emulators to access localhost on the host machine.
+    </Info>
+  </Step>
+</Steps>
+
+## Android Emulator Configuration
+
+When running on an Android emulator, use the special IP address to access services on your development machine:
+
+```bash
+flutter run -d android --dart-define=API_URL=http://10.0.2.2:3000
+```
+
+<CodeGroup>
+```dart lib/config/app_config.dart
+class AppConfig {
+  static const String baseUrl = String.fromEnvironment(
+    'API_URL',
+    defaultValue: 'http://10.0.2.2:3000',
+  );
+
+  static const int connectTimeout = 10;
+  static const int receiveTimeout = 10;
+}
+```
+</CodeGroup>
+
+| Environment | API_URL |
+|------------|----------|
+| Android Emulator | `http://10.0.2.2:3000` |
+| iOS Simulator | `http://localhost:3000` |
+| Physical Device | `http://YOUR_MACHINE_IP:3000` |
+| Chrome Web | `http://localhost:3000` |
+
+## Hot Reload Workflow
+
+Once your app is running, use these commands for rapid development:
+
+| Command | Action | Description |
+|---------|--------|-------------|
+| `r` | Hot Reload | Injects updated source code without losing state |
+| `R` | Hot Restart | Restarts the app and resets state |
+| `q` | Quit | Stops the running app |
+
+<Tip>
+  In VS Code, `Ctrl+S` (or `Cmd+S` on macOS) automatically triggers hot reload when you save a file.
+</Tip>
+
+## Environment Variable Validation
+
+The API URL is read at compile time using `String.fromEnvironment()` in `app_config.dart:2-5`. To verify your configuration:
+
+```dart
+import 'package:fsdmovil/config/app_config.dart';
+
+void main() {
+  print('Base URL: ${AppConfig.baseUrl}');
+  print('Connect Timeout: ${AppConfig.connectTimeout}s');
+  print('Receive Timeout: ${AppConfig.receiveTimeout}s');
+}
+```
+
+<Warning>
+  **Compile-time variables are permanent:** Once compiled, the API_URL cannot be changed without rebuilding the app. This ensures security but requires different builds for different environments.
+</Warning>
+
+## Troubleshooting
+
+### API_URL Not Applied
+
+**Problem:** The app still uses the default URL even after setting `--dart-define`.
+
+**Solution:** Perform a hot restart (`R`) or rebuild the app. Hot reload doesn't update compile-time constants.
+
+### Connection Refused (Android Emulator)
+
+**Problem:** Cannot connect to `http://localhost:3000` from Android emulator.
+
+**Solution:** Use `http://10.0.2.2:3000` instead. This is Android's special alias for the host machine's localhost.
+
+### VS Code Doesn't Read launch.json
+
+**Problem:** Launch configuration doesn't apply environment variables.
+
+**Solution:** 
+1. Ensure the file is at `.vscode/launch.json` (not `launch.json.example`)
+2. Restart VS Code
+3. Select the correct configuration from the Run and Debug panel
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Configuration" icon="server" href="/configuration/api-configuration">
+    Configure API endpoints and HTTP client settings
+  </Card>
+  <Card title="Build & Deployment" icon="rocket" href="/configuration/build-deployment">
+    Create production builds for all platforms
+  </Card>
+</CardGroup>

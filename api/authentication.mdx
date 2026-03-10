@@ -1,0 +1,137 @@
+---
+title: Authentication
+description: How to authenticate with the FSD Movil API
+---
+
+## Authentication Flow
+
+FSD Movil uses JWT (JSON Web Token) based authentication. The authentication flow works as follows:
+
+1. User logs in or registers via `/auth/login` or `/auth/register`
+2. Server responds with a JWT token
+3. Client stores the token locally using `shared_preferences`
+4. Client includes the token in the `Authorization` header for all subsequent requests
+5. Token remains valid until logout or expiration
+
+## JWT Token Format
+
+The API uses Bearer token authentication. Tokens are JWT strings that must be included in the `Authorization` header:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+```
+
+### Token Structure
+
+JWT tokens consist of three parts separated by dots:
+
+1. **Header**: Algorithm and token type
+2. **Payload**: Claims (user data, expiration, etc.)
+3. **Signature**: Verification signature
+
+```json
+// Decoded Header
+{
+  "alg": "HS256",
+  "typ": "JWT"
+}
+
+// Decoded Payload (example)
+{
+  "sub": "user_id_123",
+  "email": "[email protected]",
+  "iat": 1516239022,
+  "exp": 1516325422
+}
+```
+
+## How to Authenticate Requests
+
+### Setting the Token
+
+After successful login or registration, the client automatically sets the authentication token:
+
+```dart
+ApiService.setAuthToken(token);
+```
+
+This adds the token to all subsequent requests:
+
+```dart
+_dio.options.headers['Authorization'] = 'Bearer $token';
+```
+
+### Making Authenticated Requests
+
+Once the token is set, all API requests automatically include the `Authorization` header:
+
+```dart
+// Example: Fetch workspaces (authenticated)
+final response = await ApiService.dio.get('/workspaces');
+```
+
+The `Authorization: Bearer {token}` header is automatically included.
+
+### Token Persistence
+
+Tokens are persisted locally using `shared_preferences`:
+
+```dart
+static const _tokenKey = 'auth_token';
+
+// Save token
+final prefs = await SharedPreferences.getInstance();
+await prefs.setString(_tokenKey, token);
+
+// Retrieve token
+final savedToken = prefs.getString(_tokenKey);
+```
+
+This allows the user to remain logged in across app sessions.
+
+## Clearing Authentication
+
+When logging out, the token is removed from both local storage and the HTTP client:
+
+```dart
+ApiService.clearAuthToken();
+```
+
+This removes the `Authorization` header from future requests:
+
+```dart
+_dio.options.headers.remove('Authorization');
+```
+
+## Handling Unauthorized Requests
+
+If a request returns a `401 Unauthorized` status:
+
+1. The token is invalid or expired
+2. Clear local authentication state
+3. Redirect user to login screen
+4. User must authenticate again
+
+## Security Best Practices
+
+<Warning>
+Never log or expose JWT tokens in production builds. Tokens grant full access to user accounts.
+</Warning>
+
+- Store tokens securely using `shared_preferences` (encrypted on iOS/Android)
+- Always use HTTPS in production to prevent token interception
+- Implement token refresh if the backend supports it
+- Clear tokens immediately on logout
+- Handle 401 responses by redirecting to login
+
+## Token Expiration
+
+Token expiration is determined by the backend. When a token expires:
+
+- API requests return `401 Unauthorized`
+- Client should clear stored token
+- User must re-authenticate
+
+<Info>
+Implement a token refresh mechanism if your backend supports refresh tokens to improve user experience.
+</Info>

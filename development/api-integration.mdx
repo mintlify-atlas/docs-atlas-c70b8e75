@@ -1,0 +1,647 @@
+---
+title: 'API Integration'
+description: 'HTTP client setup, JWT authentication, and API patterns using Dio in FSD Movil'
+---
+
+## Overview
+
+FSD Movil uses [Dio](https://pub.dev/packages/dio) as the HTTP client for all API communication. The `ApiService` class provides a centralized configuration with automatic JWT token management.
+
+## ApiService Configuration
+
+### Service Setup
+
+The ApiService is defined in lib/services/api_service.dart:4-25:
+
+```dart
+class ApiService {
+  static final Dio _dio = Dio(
+    BaseOptions(
+      baseUrl: AppConfig.baseUrl,
+      connectTimeout: Duration(seconds: AppConfig.connectTimeout),
+      receiveTimeout: Duration(seconds: AppConfig.receiveTimeout),
+      headers: {'Content-Type': 'application/json'},
+    ),
+  );
+
+  static Dio get dio => _dio;
+
+  /// Add JWT token to all requests
+  static void setAuthToken(String token) {
+    _dio.options.headers['Authorization'] = 'Bearer $token';
+  }
+
+  /// Remove token (on logout)
+  static void clearAuthToken() {
+    _dio.options.headers.remove('Authorization');
+  }
+}
+```
+
+### Base Configuration
+
+#### Base URL
+
+Configured via environment variable with fallback (lib/config/app_config.dart:2-5):
+
+```dart
+static const String baseUrl = String.fromEnvironment(
+  'API_URL',
+  defaultValue: 'http://10.0.2.2:3000',
+);
+```
+
+- **Environment variable**: `API_URL`
+- **Default**: `http://10.0.2.2:3000` (Android emulator localhost)
+- **Production**: Set via build args: `--dart-define=API_URL=https://api.fsd.com`
+
+#### Timeouts
+
+Configured in lib/config/app_config.dart:7-8:
+
+```dart
+static const int connectTimeout = 10;  // seconds
+static const int receiveTimeout = 10;  // seconds
+```
+
+- **connectTimeout**: Maximum time to establish connection
+- **receiveTimeout**: Maximum time to receive response after connection
+
+#### Default Headers
+
+All requests include:
+
+```dart
+{
+  'Content-Type': 'application/json'
+}
+```
+
+## JWT Token Management
+
+### Setting Token
+
+Called after successful login/register (lib/services/api_service.dart:17-19):
+
+```dart
+static void setAuthToken(String token) {
+  _dio.options.headers['Authorization'] = 'Bearer $token';
+}
+```
+
+Adds `Authorization: Bearer <token>` header to all subsequent requests.
+
+### Clearing Token
+
+Called on logout (lib/services/api_service.dart:22-24):
+
+```dart
+static void clearAuthToken() {
+  _dio.options.headers.remove('Authorization');
+}
+```
+
+### Token Persistence
+
+Tokens are stored using SharedPreferences (lib/services/auth_service.dart:52-55):
+
+```dart
+static Future<void> _saveToken(String token) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(_tokenKey, token);
+}
+```
+
+### Token Restoration
+
+On app startup, restore saved token (lib/services/auth_service.dart:57-60):
+
+```dart
+static Future<String?> getSavedToken() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getString(_tokenKey);
+}
+```
+
+Used by `AuthNotifier.checkToken()` to restore session (lib/providers/auth_provider.dart:12-20).
+
+## API Routes
+
+### Centralized Route Definitions
+
+All API endpoints are defined in lib/config/api_routes.dart:1-24:
+
+```dart
+class ApiRoutes {
+  // Auth
+  static const String authLogin = '/auth/login';
+  static const String authRegister = '/auth/register';
+  static const String authLogout = '/auth/logout';
+  static const String authMe = '/auth/me';
+
+  // Workspaces
+  static const String workspaces = '/workspaces';
+  static String workspace(String id) => '/workspaces/$id';
+
+  // Projects
+  static const String projects = '/projects';
+  static String project(String id) => '/projects/$id';
+
+  // Documents (SRS)
+  static const String documents = '/documents';
+  static String document(String id) => '/documents/$id';
+  static String documentRevisions(String id) => '/documents/$id/revisions';
+
+  // Users
+  static const String users = '/users';
+  static String user(String id) => '/users/$id';
+}
+```
+
+### Route Patterns
+
+#### Static Routes
+
+Use `const String` for fixed endpoints:
+
+```dart
+static const String authLogin = '/auth/login';
+```
+
+#### Dynamic Routes
+
+Use methods for parameterized endpoints:
+
+```dart
+static String project(String id) => '/projects/$id';
+
+// Usage
+ApiService.dio.get(ApiRoutes.project('123'));
+```
+
+## Authentication Service
+
+### Login Implementation
+
+Defined in lib/services/auth_service.dart:9-20:
+
+```dart
+static Future<String?> login(String email, String password) async {
+  final response = await ApiService.dio.post(
+    ApiRoutes.authLogin,
+    data: {'email': email, 'password': password},
+  );
+  final token = response.data['token'] as String?;
+  if (token != null) {
+    await _saveToken(token);
+    ApiService.setAuthToken(token);
+  }
+  return token;
+}
+```
+
+#### Flow
+
+1. POST request to `/auth/login` with credentials
+2. Extract JWT token from response
+3. Save token to SharedPreferences
+4. Set token in ApiService headers
+5. Return token (or null on failure)
+
+### Register Implementation
+
+Defined in lib/services/auth_service.dart:23-44:
+
+```dart
+static Future<String?> register(
+  String firstName,
+  String lastName,
+  String email,
+  String password,
+) async {
+  final response = await ApiService.dio.post(
+    ApiRoutes.authRegister,
+    data: {
+      'firstName': firstName,
+      'lastName': lastName,
+      'email': email,
+      'password': password,
+    },
+  );
+  final token = response.data['token'] as String?;
+  if (token != null) {
+    await _saveToken(token);
+    ApiService.setAuthToken(token);
+  }
+  return token;
+}
+```
+
+#### Flow
+
+1. POST request to `/auth/register` with user data
+2. Extract JWT token from response
+3. Save token to SharedPreferences
+4. Set token in ApiService headers
+5. Return token (or null on failure)
+
+### Logout Implementation
+
+Defined in lib/services/auth_service.dart:46-50:
+
+```dart
+static Future<void> logout() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove(_tokenKey);
+  ApiService.clearAuthToken();
+}
+```
+
+#### Flow
+
+1. Remove token from SharedPreferences
+2. Clear Authorization header from ApiService
+3. User becomes unauthenticated
+
+## Error Handling
+
+### Current Implementation
+
+The app currently relies on Dio's default error handling. Errors are caught at the service level.
+
+### Recommended Error Handler
+
+Add interceptor for centralized error handling:
+
+```dart
+class ApiService {
+  static final Dio _dio = Dio(
+    BaseOptions(
+      // ... config
+    ),
+  )..interceptors.add(ErrorInterceptor());
+}
+
+class ErrorInterceptor extends Interceptor {
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    String message;
+    
+    switch (err.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        message = 'Connection timeout. Please try again.';
+        break;
+      case DioExceptionType.badResponse:
+        message = _handleStatusCode(err.response?.statusCode);
+        break;
+      case DioExceptionType.cancel:
+        message = 'Request cancelled.';
+        break;
+      default:
+        message = 'Network error. Please check your connection.';
+    }
+    
+    // Log error
+    print('API Error: $message');
+    
+    // Pass modified error
+    handler.next(err);
+  }
+  
+  String _handleStatusCode(int? statusCode) {
+    switch (statusCode) {
+      case 400:
+        return 'Bad request. Please check your input.';
+      case 401:
+        return 'Unauthorized. Please log in again.';
+      case 403:
+        return 'Access forbidden.';
+      case 404:
+        return 'Resource not found.';
+      case 500:
+        return 'Server error. Please try again later.';
+      default:
+        return 'An error occurred. Please try again.';
+    }
+  }
+}
+```
+
+### Status Code Handling
+
+#### Authentication Errors (401)
+
+For 401 errors, automatically log out user:
+
+```dart
+if (statusCode == 401) {
+  // Clear token and redirect to login
+  await AuthService.logout();
+  // Update auth provider
+  // Navigate to login
+}
+```
+
+#### Retry Logic
+
+Implement retry for network failures:
+
+```dart
+class RetryInterceptor extends Interceptor {
+  final int maxRetries = 3;
+  
+  @override
+  Future onError(DioException err, ErrorInterceptorHandler handler) async {
+    if (_shouldRetry(err) && err.requestOptions.extra['retryCount'] < maxRetries) {
+      err.requestOptions.extra['retryCount'] = 
+          (err.requestOptions.extra['retryCount'] ?? 0) + 1;
+      
+      // Wait before retry
+      await Future.delayed(Duration(seconds: 2));
+      
+      // Retry request
+      try {
+        final response = await _dio.fetch(err.requestOptions);
+        return handler.resolve(response);
+      } catch (e) {
+        return handler.next(err);
+      }
+    }
+    
+    return handler.next(err);
+  }
+  
+  bool _shouldRetry(DioException err) {
+    return err.type == DioExceptionType.connectionTimeout ||
+           err.type == DioExceptionType.receiveTimeout ||
+           (err.response?.statusCode ?? 0) >= 500;
+  }
+}
+```
+
+## Making API Requests
+
+### GET Requests
+
+```dart
+// Get all projects
+final response = await ApiService.dio.get(ApiRoutes.projects);
+final projects = response.data as List;
+
+// Get specific project
+final response = await ApiService.dio.get(ApiRoutes.project('123'));
+final project = response.data as Map<String, dynamic>;
+```
+
+### POST Requests
+
+```dart
+// Create project
+final response = await ApiService.dio.post(
+  ApiRoutes.projects,
+  data: {
+    'name': 'New Project',
+    'description': 'Project description',
+  },
+);
+final project = response.data;
+```
+
+### PUT/PATCH Requests
+
+```dart
+// Update project
+final response = await ApiService.dio.put(
+  ApiRoutes.project('123'),
+  data: {
+    'name': 'Updated Name',
+  },
+);
+```
+
+### DELETE Requests
+
+```dart
+// Delete project
+await ApiService.dio.delete(ApiRoutes.project('123'));
+```
+
+## Request/Response Patterns
+
+### Service Layer Pattern
+
+Create dedicated services for each domain:
+
+```dart
+class ProjectService {
+  static Future<List<Project>> getProjects() async {
+    final response = await ApiService.dio.get(ApiRoutes.projects);
+    return (response.data as List)
+        .map((json) => Project.fromJson(json))
+        .toList();
+  }
+  
+  static Future<Project> getProject(String id) async {
+    final response = await ApiService.dio.get(ApiRoutes.project(id));
+    return Project.fromJson(response.data);
+  }
+  
+  static Future<Project> createProject(ProjectInput input) async {
+    final response = await ApiService.dio.post(
+      ApiRoutes.projects,
+      data: input.toJson(),
+    );
+    return Project.fromJson(response.data);
+  }
+}
+```
+
+### Model Classes
+
+Define models with JSON serialization:
+
+```dart
+class Project {
+  final String id;
+  final String name;
+  final String description;
+  final DateTime createdAt;
+  
+  Project({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.createdAt,
+  });
+  
+  factory Project.fromJson(Map<String, dynamic> json) {
+    return Project(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      description: json['description'] as String,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+    );
+  }
+  
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'createdAt': createdAt.toIso8601String(),
+    };
+  }
+}
+```
+
+## Interceptors
+
+### Logging Interceptor
+
+Log all requests and responses:
+
+```dart
+class LoggingInterceptor extends Interceptor {
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    print('REQUEST[${options.method}] => PATH: ${options.path}');
+    print('Headers: ${options.headers}');
+    print('Data: ${options.data}');
+    handler.next(options);
+  }
+  
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    print('RESPONSE[${response.statusCode}] => PATH: ${response.requestOptions.path}');
+    print('Data: ${response.data}');
+    handler.next(response);
+  }
+  
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    print('ERROR[${err.response?.statusCode}] => PATH: ${err.requestOptions.path}');
+    print('Message: ${err.message}');
+    handler.next(err);
+  }
+}
+
+// Add to Dio
+_dio.interceptors.add(LoggingInterceptor());
+```
+
+### Token Refresh Interceptor
+
+Automatically refresh expired tokens:
+
+```dart
+class TokenRefreshInterceptor extends Interceptor {
+  @override
+  Future onError(DioException err, ErrorInterceptorHandler handler) async {
+    if (err.response?.statusCode == 401) {
+      // Try to refresh token
+      final newToken = await _refreshToken();
+      
+      if (newToken != null) {
+        // Update token
+        ApiService.setAuthToken(newToken);
+        
+        // Retry original request
+        final options = err.requestOptions;
+        options.headers['Authorization'] = 'Bearer $newToken';
+        
+        try {
+          final response = await _dio.fetch(options);
+          return handler.resolve(response);
+        } catch (e) {
+          return handler.next(err);
+        }
+      }
+    }
+    
+    return handler.next(err);
+  }
+  
+  Future<String?> _refreshToken() async {
+    // Implement token refresh logic
+    // Return new token or null
+  }
+}
+```
+
+## Testing API Integration
+
+### Mocking Dio
+
+Use `http_mock_adapter` for testing:
+
+```dart
+import 'package:http_mock_adapter/http_mock_adapter.dart';
+
+void main() {
+  late Dio dio;
+  late DioAdapter dioAdapter;
+  
+  setUp(() {
+    dio = Dio();
+    dioAdapter = DioAdapter(dio: dio);
+  });
+  
+  test('login returns token on success', () async {
+    dioAdapter.onPost(
+      '/auth/login',
+      (server) => server.reply(200, {'token': 'fake-token'}),
+    );
+    
+    final response = await dio.post(
+      '/auth/login',
+      data: {'email': 'test@example.com', 'password': 'password'},
+    );
+    
+    expect(response.data['token'], 'fake-token');
+  });
+}
+```
+
+## Best Practices
+
+### 1. Centralize Configuration
+
+Keep all API config in one place (ApiService, AppConfig, ApiRoutes).
+
+### 2. Use Environment Variables
+
+Never hardcode API URLs. Use `--dart-define` for different environments.
+
+### 3. Handle Errors Gracefully
+
+Provide user-friendly error messages, not raw exceptions.
+
+### 4. Implement Retry Logic
+
+Retry failed requests due to network issues.
+
+### 5. Log Requests (Dev Only)
+
+Use interceptors for logging, disable in production.
+
+### 6. Type Safety
+
+Use model classes instead of raw JSON maps.
+
+### 7. Timeout Configuration
+
+Set appropriate timeouts based on expected response times.
+
+### 8. Token Security
+
+Store tokens securely using SharedPreferences or flutter_secure_storage.
+
+## Next Steps
+
+- Review [State Management](/development/state-management) integration
+- Implement error interceptors
+- Add token refresh logic
+- Create domain-specific service classes
+- Review [Architecture](/development/architecture) overview

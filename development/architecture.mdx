@@ -1,0 +1,150 @@
+---
+title: 'Architecture'
+description: 'Understanding the project structure and architectural patterns in FSD Movil'
+---
+
+## Overview
+
+FSD Movil follows a clean, modular architecture built with Flutter and Riverpod for state management. The codebase is organized into distinct layers that separate concerns and promote maintainability.
+
+## Project Structure
+
+The application is organized into the following directories:
+
+```
+lib/
+├── config/          # Configuration files and constants
+├── providers/       # Riverpod state providers
+├── router/          # Navigation and routing logic
+├── screens/         # UI screens/pages
+└── services/        # Business logic and API communication
+```
+
+### Configuration Layer (`config/`)
+
+Contains application-wide configuration and constants:
+
+- **app_config.dart** - Environment variables and app settings
+- **api_routes.dart** - Centralized API endpoint definitions
+
+```dart
+class AppConfig {
+  static const String baseUrl = String.fromEnvironment(
+    'API_URL',
+    defaultValue: 'http://10.0.2.2:3000',
+  );
+  
+  static const int connectTimeout = 10;
+  static const int receiveTimeout = 10;
+}
+```
+
+See lib/config/app_config.dart:1-9
+
+### Providers Layer (`providers/`)
+
+Manages application state using Riverpod's StateNotifier pattern:
+
+- **auth_provider.dart** - Authentication state management
+
+Providers act as the bridge between UI and services, handling state transitions and business logic validation.
+
+### Router Layer (`router/`)
+
+Handles navigation and screen transitions:
+
+- **app_router.dart** - GoRouter configuration with custom transitions
+
+See [Routing](/development/routing) for detailed documentation.
+
+### Screens Layer (`screens/`)
+
+Contains all UI screens:
+
+- **login_screen.dart** - User login interface
+- **register_screen.dart** - User registration interface
+- **dashboard_screen.dart** - Main application dashboard
+
+### Services Layer (`services/`)
+
+Encapsulates business logic and external integrations:
+
+- **api_service.dart** - HTTP client configuration and token management
+- **auth_service.dart** - Authentication operations (login, register, logout)
+
+Services handle data persistence, API communication, and domain logic.
+
+## Data Flow
+
+The application follows a unidirectional data flow pattern:
+
+```
+UI (Screens) → Providers (State Management) → Services (Business Logic) → API
+     ↑                                                                      |
+     └──────────────────── State Updates ─────────────────────────────────┘
+```
+
+### Example Flow: User Login
+
+1. **UI Layer**: User enters credentials and taps login button (lib/screens/login_screen.dart)
+2. **Provider Layer**: `AuthNotifier.login()` validates input (lib/providers/auth_provider.dart:30)
+3. **Service Layer**: `AuthService.login()` makes API request (lib/services/auth_service.dart:9)
+4. **API Layer**: `ApiService` sends authenticated request with Dio (lib/services/api_service.dart:10)
+5. **State Update**: Token is saved, auth state updates to `authenticated`
+6. **UI Update**: Router navigates to dashboard based on auth state
+
+## Separation of Concerns
+
+### Configuration
+- Centralizes all constants and environment variables
+- Makes configuration changes easy without touching business logic
+
+### Providers
+- Only handle state management and validation
+- Never directly interact with APIs or perform I/O operations
+- Delegate complex logic to services
+
+### Services
+- Contain all business logic and data operations
+- Stateless and testable
+- Return data or errors without managing UI state
+
+### Screens
+- Focus purely on presentation
+- React to state changes from providers
+- Minimal business logic (formatting, UI calculations only)
+
+## Initialization
+
+The app initializes in lib/main.dart:6-9:
+
+```dart
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const ProviderScope(child: MyApp()));
+}
+```
+
+- `WidgetsFlutterBinding.ensureInitialized()` ensures Flutter is ready
+- `ProviderScope` wraps the app to enable Riverpod functionality
+- `MaterialApp.router` connects the GoRouter configuration
+
+## Design Principles
+
+### Single Responsibility
+Each class has one clear purpose. Services handle data, providers manage state, screens render UI.
+
+### Dependency Injection
+Riverpod providers are injected where needed, making testing and maintenance easier.
+
+### Immutability
+State objects are immutable. State changes create new instances rather than mutating existing ones.
+
+### Testability
+Services and providers are decoupled from UI, enabling unit testing without widget tests.
+
+## Next Steps
+
+- Learn about [State Management](/development/state-management) with Riverpod
+- Explore [Routing](/development/routing) and navigation guards
+- Understand [API Integration](/development/api-integration) patterns

@@ -1,0 +1,345 @@
+---
+title: API Configuration
+description: Configure HTTP client, base URLs, timeouts, and API endpoints
+---
+
+FSD Movil uses **Dio** as its HTTP client with centralized configuration for base URLs, timeouts, and authentication headers. All API endpoints are managed through a single routes file for consistency.
+
+## Configuration Architecture
+
+The API configuration is split into two files:
+
+<CardGroup cols={2}>
+  <Card title="app_config.dart" icon="gear">
+    Base URL, timeouts, and global HTTP settings
+  </Card>
+  <Card title="api_routes.dart" icon="route">
+    Centralized endpoint definitions
+  </Card>
+</CardGroup>
+
+## Base URL Configuration
+
+The `AppConfig` class in `lib/config/app_config.dart` manages core HTTP configuration:
+
+```dart lib/config/app_config.dart
+class AppConfig {
+  static const String baseUrl = String.fromEnvironment(
+    'API_URL',
+    defaultValue: 'http://10.0.2.2:3000',
+  );
+
+  static const int connectTimeout = 10;
+  static const int receiveTimeout = 10;
+}
+```
+
+### Configuration Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `baseUrl` | `String` | `http://10.0.2.2:3000` | Backend API base URL (set via `--dart-define=API_URL`) |
+| `connectTimeout` | `int` | `10` | Connection timeout in seconds |
+| `receiveTimeout` | `int` | `10` | Response receive timeout in seconds |
+
+<Info>
+  The base URL is read from the compile-time `API_URL` variable. See [Environment Setup](/configuration/environment-setup) for configuration details.
+</Info>
+
+## HTTP Client Setup
+
+The `ApiService` class in `lib/services/api_service.dart` initializes the Dio HTTP client with configuration from `AppConfig`:
+
+<CodeGroup>
+```dart lib/services/api_service.dart
+import 'package:dio/dio.dart';
+import 'package:fsdmovil/config/app_config.dart';
+
+class ApiService {
+  static final Dio _dio = Dio(
+    BaseOptions(
+      baseUrl: AppConfig.baseUrl,
+      connectTimeout: Duration(seconds: AppConfig.connectTimeout),
+      receiveTimeout: Duration(seconds: AppConfig.receiveTimeout),
+      headers: {'Content-Type': 'application/json'},
+    ),
+  );
+
+  static Dio get dio => _dio;
+
+  /// Agrega el token JWT a todas las peticiones
+  static void setAuthToken(String token) {
+    _dio.options.headers['Authorization'] = 'Bearer $token';
+  }
+
+  /// Elimina el token (al cerrar sesión)
+  static void clearAuthToken() {
+    _dio.options.headers.remove('Authorization');
+  }
+}
+```
+</CodeGroup>
+
+### Key Features
+
+- **Singleton pattern:** Single Dio instance shared across the app
+- **JWT authentication:** Automatic Bearer token injection via `setAuthToken()` (line 17-19)
+- **JSON headers:** Default `Content-Type: application/json` for all requests
+- **Configurable timeouts:** Timeouts applied from `AppConfig`
+
+## Timeout Configuration
+
+Timeouts are defined in seconds and converted to `Duration` objects:
+
+<Steps>
+  <Step title="Connection Timeout">
+    Maximum time to establish a connection with the server.
+
+    ```dart
+    connectTimeout: Duration(seconds: AppConfig.connectTimeout), // 10 seconds
+    ```
+
+    Triggers when the server is unreachable or network is slow.
+  </Step>
+
+  <Step title="Receive Timeout">
+    Maximum time to wait for a response after the connection is established.
+
+    ```dart
+    receiveTimeout: Duration(seconds: AppConfig.receiveTimeout), // 10 seconds
+    ```
+
+    Triggers when the server is processing too slowly.
+  </Step>
+</Steps>
+
+<Warning>
+  **Production recommendation:** Increase timeouts for production environments where network conditions may vary:
+  ```dart
+  static const int connectTimeout = 30;
+  static const int receiveTimeout = 30;
+  ```
+</Warning>
+
+## API Routes Structure
+
+All API endpoints are centralized in `lib/config/api_routes.dart` to prevent hardcoded URLs throughout the codebase:
+
+```dart lib/config/api_routes.dart
+class ApiRoutes {
+  // Auth
+  static const String authLogin = '/auth/login';
+  static const String authRegister = '/auth/register';
+  static const String authLogout = '/auth/logout';
+  static const String authMe = '/auth/me';
+
+  // Workspaces
+  static const String workspaces = '/workspaces';
+  static String workspace(String id) => '/workspaces/$id';
+
+  // Projects
+  static const String projects = '/projects';
+  static String project(String id) => '/projects/$id';
+
+  // Documents (SRS)
+  static const String documents = '/documents';
+  static String document(String id) => '/documents/$id';
+  static String documentRevisions(String id) => '/documents/$id/revisions';
+
+  // Users
+  static const String users = '/users';
+  static String user(String id) => '/users/$id';
+}
+```
+
+### Route Categories
+
+<AccordionGroup>
+  <Accordion title="Authentication Routes" icon="lock">
+    | Endpoint | Method | Description |
+    |----------|--------|-------------|
+    | `/auth/login` | POST | User login |
+    | `/auth/register` | POST | User registration |
+    | `/auth/logout` | POST | User logout |
+    | `/auth/me` | GET | Get current user |
+  </Accordion>
+
+  <Accordion title="Workspace Routes" icon="folder">
+    | Endpoint | Method | Description |
+    |----------|--------|-------------|
+    | `/workspaces` | GET/POST | List or create workspaces |
+    | `/workspaces/:id` | GET/PUT/DELETE | Workspace operations |
+  </Accordion>
+
+  <Accordion title="Project Routes" icon="diagram-project">
+    | Endpoint | Method | Description |
+    |----------|--------|-------------|
+    | `/projects` | GET/POST | List or create projects |
+    | `/projects/:id` | GET/PUT/DELETE | Project operations |
+  </Accordion>
+
+  <Accordion title="Document Routes" icon="file-lines">
+    | Endpoint | Method | Description |
+    |----------|--------|-------------|
+    | `/documents` | GET/POST | List or create SRS documents |
+    | `/documents/:id` | GET/PUT/DELETE | Document operations |
+    | `/documents/:id/revisions` | GET | Document revision history |
+  </Accordion>
+
+  <Accordion title="User Routes" icon="user">
+    | Endpoint | Method | Description |
+    |----------|--------|-------------|
+    | `/users` | GET | List users |
+    | `/users/:id` | GET/PUT/DELETE | User operations |
+  </Accordion>
+</AccordionGroup>
+
+## Using API Routes
+
+### Static Routes
+
+For endpoints without parameters:
+
+```dart
+import 'package:fsdmovil/config/api_routes.dart';
+import 'package:fsdmovil/services/api_service.dart';
+
+// Login request
+final response = await ApiService.dio.post(
+  ApiRoutes.authLogin,
+  data: {'email': 'user@example.com', 'password': 'password123'},
+);
+
+// Get all workspaces
+final workspaces = await ApiService.dio.get(ApiRoutes.workspaces);
+```
+
+### Dynamic Routes
+
+For endpoints with path parameters:
+
+```dart
+// Get specific workspace
+final workspaceId = 'abc123';
+final response = await ApiService.dio.get(
+  ApiRoutes.workspace(workspaceId),
+);
+
+// Get document revisions
+final documentId = 'doc456';
+final revisions = await ApiService.dio.get(
+  ApiRoutes.documentRevisions(documentId),
+);
+```
+
+<Tip>
+  Dynamic route methods in `ApiRoutes` use string interpolation to build paths. This ensures type safety and prevents typos in endpoint URLs.
+</Tip>
+
+## JWT Authentication Flow
+
+The `ApiService` provides methods to manage JWT tokens for authenticated requests:
+
+<Steps>
+  <Step title="Login and Store Token">
+    After successful login, set the JWT token:
+
+    ```dart
+    final response = await ApiService.dio.post(
+      ApiRoutes.authLogin,
+      data: {'email': email, 'password': password},
+    );
+
+    final token = response.data['token'];
+    ApiService.setAuthToken(token);
+    ```
+  </Step>
+
+  <Step title="Authenticated Requests">
+    All subsequent requests automatically include the Bearer token:
+
+    ```dart
+    // Authorization header is automatically added
+    final projects = await ApiService.dio.get(ApiRoutes.projects);
+    ```
+  </Step>
+
+  <Step title="Logout and Clear Token">
+    When logging out, remove the token:
+
+    ```dart
+    await ApiService.dio.post(ApiRoutes.authLogout);
+    ApiService.clearAuthToken();
+    ```
+  </Step>
+</Steps>
+
+## Custom Headers
+
+To add custom headers to specific requests:
+
+```dart
+final response = await ApiService.dio.get(
+  ApiRoutes.documents,
+  options: Options(
+    headers: {
+      'X-Custom-Header': 'value',
+      'Accept-Language': 'es',
+    },
+  ),
+);
+```
+
+## Error Handling
+
+Dio provides detailed error information through `DioException`:
+
+```dart
+try {
+  final response = await ApiService.dio.post(
+    ApiRoutes.authLogin,
+    data: credentials,
+  );
+} on DioException catch (e) {
+  if (e.type == DioExceptionType.connectionTimeout) {
+    print('Connection timeout after ${AppConfig.connectTimeout}s');
+  } else if (e.type == DioExceptionType.receiveTimeout) {
+    print('Receive timeout after ${AppConfig.receiveTimeout}s');
+  } else if (e.response != null) {
+    print('Server error: ${e.response?.statusCode}');
+  } else {
+    print('Network error: ${e.message}');
+  }
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Always Use ApiRoutes" icon="route">
+    Never hardcode endpoint strings. Always reference `ApiRoutes` constants to ensure consistency and enable refactoring.
+  </Card>
+  
+  <Card title="Set Token After Login" icon="key">
+    Call `ApiService.setAuthToken()` immediately after successful authentication to enable authenticated requests.
+  </Card>
+  
+  <Card title="Clear Token on Logout" icon="right-from-bracket">
+    Always call `ApiService.clearAuthToken()` when the user logs out to prevent unauthorized requests.
+  </Card>
+  
+  <Card title="Handle Timeouts Gracefully" icon="clock">
+    Implement retry logic or user-friendly error messages for timeout scenarios.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Setup" icon="gear" href="/configuration/environment-setup">
+    Configure development environments and API URLs
+  </Card>
+  <Card title="Build & Deployment" icon="rocket" href="/configuration/build-deployment">
+    Create production builds with proper API configuration
+  </Card>
+</CardGroup>

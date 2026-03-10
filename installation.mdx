@@ -1,0 +1,735 @@
+---
+title: "Installation"
+description: "Set up your development environment to build and run FSD Movil"
+---
+
+## System Requirements
+
+Before installing FSD Movil, ensure your system meets these requirements:
+
+<Tabs>
+  <Tab title="macOS">
+    - **OS**: macOS 10.14 (Mojave) or later
+    - **Disk Space**: At least 5 GB free
+    - **RAM**: 8 GB minimum (16 GB recommended)
+    - **Tools**: Xcode 12.0+ for iOS development
+  </Tab>
+  
+  <Tab title="Windows">
+    - **OS**: Windows 10 64-bit or later
+    - **Disk Space**: At least 5 GB free
+    - **RAM**: 8 GB minimum (16 GB recommended)
+    - **Tools**: Android Studio or VS Code
+  </Tab>
+  
+  <Tab title="Linux">
+    - **OS**: 64-bit distribution
+    - **Disk Space**: At least 5 GB free
+    - **RAM**: 8 GB minimum (16 GB recommended)
+    - **Tools**: Development libraries for desktop apps
+  </Tab>
+</Tabs>
+
+## Step 1: Install Flutter SDK
+
+FSD Movil requires Flutter SDK version **3.10.8** or higher.
+
+<Note>
+  The project specifies `sdk: ^3.10.8` in `pubspec.yaml`, ensuring compatibility with the latest Dart features.
+</Note>
+
+### Download Flutter
+
+Download the Flutter SDK for your operating system:
+
+<CardGroup cols={3}>
+  <Card title="macOS" icon="apple" href="https://docs.flutter.dev/get-started/install/macos">
+    Intel or Apple Silicon
+  </Card>
+  <Card title="Windows" icon="windows" href="https://docs.flutter.dev/get-started/install/windows">
+    64-bit version
+  </Card>
+  <Card title="Linux" icon="linux" href="https://docs.flutter.dev/get-started/install/linux">
+    Debian, Ubuntu, or other
+  </Card>
+</CardGroup>
+
+### Install Flutter
+
+<Tabs>
+  <Tab title="macOS">
+    <Steps>
+      <Step title="Download SDK">
+        Download the Flutter SDK bundle:
+        ```bash
+        cd ~/development
+        curl -O https://storage.googleapis.com/flutter_infra_release/releases/stable/macos/flutter_macos_arm64_3.10.8-stable.zip
+        unzip flutter_macos_arm64_3.10.8-stable.zip
+        ```
+      </Step>
+      
+      <Step title="Add to PATH">
+        Add Flutter to your shell configuration:
+        ```bash
+        # For Bash (~/.bash_profile or ~/.bashrc)
+        export PATH="$PATH:$HOME/development/flutter/bin"
+        
+        # For Zsh (~/.zshrc)
+        export PATH="$PATH:$HOME/development/flutter/bin"
+        ```
+        
+        Reload your shell:
+        ```bash
+        source ~/.zshrc  # or ~/.bash_profile
+        ```
+      </Step>
+      
+      <Step title="Verify Installation">
+        Check Flutter is available:
+        ```bash
+        flutter --version
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+  
+  <Tab title="Windows">
+    <Steps>
+      <Step title="Download SDK">
+        1. Download the Flutter SDK ZIP file
+        2. Extract to `C:\src\flutter` (avoid spaces in path)
+      </Step>
+      
+      <Step title="Add to PATH">
+        1. Search for **Environment Variables** in Windows settings
+        2. Edit **Path** under User variables
+        3. Add new entry: `C:\src\flutter\bin`
+        4. Click **OK** to save
+      </Step>
+      
+      <Step title="Verify Installation">
+        Open a new Command Prompt or PowerShell:
+        ```powershell
+        flutter --version
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+  
+  <Tab title="Linux">
+    <Steps>
+      <Step title="Download SDK">
+        Download and extract Flutter:
+        ```bash
+        cd ~/development
+        wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.10.8-stable.tar.xz
+        tar xf flutter_linux_3.10.8-stable.tar.xz
+        ```
+      </Step>
+      
+      <Step title="Add to PATH">
+        Add to `~/.bashrc` or `~/.zshrc`:
+        ```bash
+        export PATH="$PATH:$HOME/development/flutter/bin"
+        ```
+        
+        Reload:
+        ```bash
+        source ~/.bashrc
+        ```
+      </Step>
+      
+      <Step title="Verify Installation">
+        ```bash
+        flutter --version
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+### Run Flutter Doctor
+
+Verify your installation and identify any missing dependencies:
+
+```bash
+flutter doctor -v
+```
+
+Expected output:
+
+```
+[✓] Flutter (Channel stable, 3.10.8, on macOS 13.0)
+[✓] Android toolchain - develop for Android devices
+[✓] Xcode - develop for iOS and macOS
+[✓] Chrome - develop for the web
+[✓] Android Studio (version 2023.1)
+[✓] VS Code (version 1.85.0)
+[✓] Connected device (3 available)
+```
+
+<Warning>
+  Address any issues marked with **[✗]** before proceeding. Flutter Doctor provides specific instructions for each problem.
+</Warning>
+
+## Step 2: Install Platform-Specific Tools
+
+### Android Development
+
+<Steps>
+  <Step title="Install Android Studio">
+    Download from [developer.android.com](https://developer.android.com/studio)
+    
+    Android Studio includes:
+    - Android SDK
+    - Android SDK Platform-Tools
+    - Android Emulator
+  </Step>
+  
+  <Step title="Install Android SDK">
+    Open Android Studio and install:
+    - Android SDK Platform API 34 (Android 14)
+    - Android SDK Build-Tools
+    - Android SDK Command-line Tools
+    
+    Go to: **Settings → Appearance & Behavior → System Settings → Android SDK**
+  </Step>
+  
+  <Step title="Accept Android Licenses">
+    ```bash
+    flutter doctor --android-licenses
+    ```
+    
+    Type **y** to accept all licenses.
+  </Step>
+  
+  <Step title="Set Minimum SDK Version">
+    FSD Movil requires **API Level 21** (Android 5.0) or higher, as configured in `pubspec.yaml`:
+    
+    ```yaml pubspec.yaml
+    flutter_launcher_icons:
+      android: true
+      ios: true
+      image_path: "assets/images/logo.png"
+      min_sdk_android: 21  # Android 5.0+
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+  To run the app on a physical Android device, enable **Developer Options** and **USB Debugging** in your device settings.
+</Tip>
+
+### iOS Development (macOS only)
+
+<Steps>
+  <Step title="Install Xcode">
+    Download Xcode from the Mac App Store or [developer.apple.com](https://developer.apple.com/xcode/)
+    
+    Xcode includes:
+    - iOS SDK
+    - iOS Simulator
+    - Command Line Tools
+  </Step>
+  
+  <Step title="Configure Xcode">
+    Set up Xcode command-line tools:
+    ```bash
+    sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+    sudo xcodebuild -runFirstLaunch
+    ```
+  </Step>
+  
+  <Step title="Accept License Agreement">
+    ```bash
+    sudo xcodebuild -license accept
+    ```
+  </Step>
+  
+  <Step title="Install CocoaPods">
+    CocoaPods manages iOS dependencies:
+    ```bash
+    sudo gem install cocoapods
+    ```
+  </Step>
+  
+  <Step title="Deploy to Simulator">
+    Open iOS Simulator:
+    ```bash
+    open -a Simulator
+    ```
+    
+    Verify it appears in Flutter devices:
+    ```bash
+    flutter devices
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  FSD Movil supports **iOS 12.0 and above**. Deployment to physical devices requires an Apple Developer account.
+</Note>
+
+### Web Development
+
+<Steps>
+  <Step title="Install Chrome">
+    Download Google Chrome from [google.com/chrome](https://www.google.com/chrome/)
+  </Step>
+  
+  <Step title="Verify Web Support">
+    ```bash
+    flutter devices
+    ```
+    
+    You should see:
+    ```
+    Chrome (web) • chrome • web-javascript • Google Chrome
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+  Web is the fastest platform for development and testing UI changes thanks to hot reload.
+</Tip>
+
+### Desktop Development
+
+<Tabs>
+  <Tab title="Windows">
+    <Steps>
+      <Step title="Install Visual Studio">
+        Download **Visual Studio 2022** with:
+        - Desktop development with C++
+        - Windows 10 SDK
+      </Step>
+      
+      <Step title="Enable Windows Desktop">
+        ```powershell
+        flutter config --enable-windows-desktop
+        ```
+      </Step>
+      
+      <Step title="Verify">
+        ```powershell
+        flutter devices
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+  
+  <Tab title="macOS">
+    <Steps>
+      <Step title="Enable macOS Desktop">
+        ```bash
+        flutter config --enable-macos-desktop
+        ```
+      </Step>
+      
+      <Step title="Verify">
+        ```bash
+        flutter devices
+        ```
+        
+        You should see:
+        ```
+        macOS (desktop) • macos • darwin-arm64 • macOS 13.0
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+  
+  <Tab title="Linux">
+    <Steps>
+      <Step title="Install Dependencies">
+        ```bash
+        # Ubuntu/Debian
+        sudo apt-get install clang cmake ninja-build pkg-config libgtk-3-dev
+        
+        # Fedora
+        sudo dnf install clang cmake ninja-build pkg-config gtk3-devel
+        ```
+      </Step>
+      
+      <Step title="Enable Linux Desktop">
+        ```bash
+        flutter config --enable-linux-desktop
+        ```
+      </Step>
+      
+      <Step title="Verify">
+        ```bash
+        flutter devices
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Step 3: Install Code Editor
+
+Choose your preferred development environment:
+
+### Visual Studio Code (Recommended)
+
+<Steps>
+  <Step title="Download VS Code">
+    Download from [code.visualstudio.com](https://code.visualstudio.com/)
+  </Step>
+  
+  <Step title="Install Extensions">
+    Install these essential extensions:
+    
+    - **Flutter** (by Dart Code): Flutter development tools
+    - **Dart** (by Dart Code): Dart language support
+    - **Error Lens**: Inline error display
+    - **Pubspec Assist**: Dependency management
+  </Step>
+  
+  <Step title="Verify Setup">
+    Open Command Palette (**Ctrl+Shift+P** / **Cmd+Shift+P**) and run:
+    ```
+    Flutter: Run Flutter Doctor
+    ```
+  </Step>
+</Steps>
+
+### Android Studio
+
+<Steps>
+  <Step title="Install Plugins">
+    Go to **Settings → Plugins** and install:
+    - Flutter plugin
+    - Dart plugin
+  </Step>
+  
+  <Step title="Configure SDK">
+    Set Flutter SDK path in **Settings → Languages & Frameworks → Flutter**
+  </Step>
+</Steps>
+
+<CardGroup cols={2}>
+  <Card title="VS Code" icon="code">
+    Lightweight, fast, excellent Flutter extension
+  </Card>
+  <Card title="Android Studio" icon="android">
+    Full-featured, integrated Android tools
+  </Card>
+</CardGroup>
+
+## Step 4: Clone FSD Movil
+
+Get the source code from GitHub:
+
+<CodeGroup>
+```bash HTTPS
+git clone https://github.com/elchinito24/fsdmovil.git
+cd fsdmovil
+```
+
+```bash SSH
+git clone git@github.com:elchinito24/fsdmovil.git
+cd fsdmovil
+```
+
+```bash GitHub CLI
+gh repo clone elchinito24/fsdmovil
+cd fsdmovil
+```
+</CodeGroup>
+
+## Step 5: Install Project Dependencies
+
+FSD Movil depends on several Flutter packages defined in `pubspec.yaml`:
+
+```yaml pubspec.yaml
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # HTTP
+  dio: ^5.7.0
+
+  # Estado global
+  flutter_riverpod: ^2.6.1
+
+  # Navegación
+  go_router: ^14.6.2
+
+  # Almacenamiento local (token JWT)
+  shared_preferences: ^2.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.14.1
+  flutter_lints: ^6.0.0
+```
+
+Install all dependencies:
+
+```bash
+flutter pub get
+```
+
+<Note>
+  This command downloads and caches all packages. It may take a few minutes on first run.
+</Note>
+
+### Key Dependencies Explained
+
+<AccordionGroup>
+  <Accordion title="dio (^5.7.0) - HTTP Client" icon="globe">
+    Powerful HTTP client for making API requests:
+    
+    - Interceptors for JWT token injection
+    - Request/response transformation
+    - Error handling and retries
+    - File upload/download support
+    
+    Used in `lib/services/api_service.dart` to communicate with the backend.
+  </Accordion>
+  
+  <Accordion title="flutter_riverpod (^2.6.1) - State Management" icon="atom">
+    Modern state management solution:
+    
+    - Compile-time safety
+    - Provider composition
+    - Easy testing
+    - Automatic disposal
+    
+    Used throughout the app for managing authentication, data fetching, and UI state.
+  </Accordion>
+  
+  <Accordion title="go_router (^14.6.2) - Navigation" icon="route">
+    Declarative routing for Flutter:
+    
+    - Type-safe navigation
+    - Deep linking support
+    - Custom transitions
+    - Route guards
+    
+    Configured in `lib/router/app_router.dart` with slide animations.
+  </Accordion>
+  
+  <Accordion title="shared_preferences (^2.3.3) - Local Storage" icon="hard-drive">
+    Key-value storage for simple data:
+    
+    - JWT token persistence
+    - User preferences
+    - App settings
+    
+    Used in `lib/services/auth_service.dart` to store authentication tokens securely.
+  </Accordion>
+</AccordionGroup>
+
+## Step 6: Generate App Icons
+
+FSD Movil uses `flutter_launcher_icons` to generate platform-specific app icons:
+
+```yaml pubspec.yaml
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"
+  min_sdk_android: 21
+```
+
+Generate icons:
+
+```bash
+flutter pub run flutter_launcher_icons
+```
+
+<Tip>
+  Place your logo image at `assets/images/logo.png` (1024x1024 px recommended) to customize the app icon.
+</Tip>
+
+## Step 7: Verify Installation
+
+Run a comprehensive check:
+
+```bash
+flutter doctor -v
+```
+
+All platforms you plan to target should show **[✓]**.
+
+### Test Installation
+
+Run the app without configuration to verify everything is set up:
+
+```bash
+flutter run -d chrome
+```
+
+<Warning>
+  The app will use the default API URL (`http://10.0.2.2:3000`) which won't connect to a real backend. This is just to verify the app compiles and runs.
+</Warning>
+
+## Platform-Specific Setup
+
+### Android Signing Configuration
+
+For production builds, configure app signing:
+
+<Steps>
+  <Step title="Generate Keystore">
+    ```bash
+    keytool -genkey -v -keystore ~/fsdmovil-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias fsdmovil
+    ```
+  </Step>
+  
+  <Step title="Create key.properties">
+    Create `android/key.properties`:
+    ```properties
+    storePassword=<password>
+    keyPassword=<password>
+    keyAlias=fsdmovil
+    storeFile=<path-to-keystore>
+    ```
+  </Step>
+  
+  <Step title="Update build.gradle">
+    Reference the keystore in `android/app/build.gradle`
+  </Step>
+</Steps>
+
+<Warning>
+  Never commit `key.properties` or your keystore to version control. Add them to `.gitignore`.
+</Warning>
+
+### iOS Provisioning
+
+For iOS deployment:
+
+<Steps>
+  <Step title="Open Xcode">
+    ```bash
+    open ios/Runner.xcworkspace
+    ```
+  </Step>
+  
+  <Step title="Configure Signing">
+    In Xcode:
+    1. Select **Runner** target
+    2. Go to **Signing & Capabilities**
+    3. Select your development team
+    4. Choose automatic or manual signing
+  </Step>
+  
+  <Step title="Update Bundle ID">
+    Change the bundle identifier to match your Apple Developer account
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Flutter Doctor Shows Missing Dependencies" icon="stethoscope">
+    Run `flutter doctor` and follow the specific instructions for each **[✗]** item:
+    
+    - **Android toolchain**: Run `flutter doctor --android-licenses`
+    - **Xcode**: Install from Mac App Store
+    - **CocoaPods**: Run `sudo gem install cocoapods`
+    - **Visual Studio**: Install C++ workload
+  </Accordion>
+  
+  <Accordion title="pub get Fails" icon="box-open">
+    **Error**: Package resolution failed or download errors
+    
+    **Solutions**:
+    ```bash
+    # Clear pub cache
+    flutter pub cache clean
+    
+    # Delete lockfile
+    rm pubspec.lock
+    
+    # Try again
+    flutter pub get
+    ```
+  </Accordion>
+  
+  <Accordion title="iOS Build Fails" icon="apple">
+    **Error**: CocoaPods-related errors
+    
+    **Solutions**:
+    ```bash
+    # Clean iOS build
+    cd ios
+    rm -rf Pods Podfile.lock
+    pod install
+    cd ..
+    
+    # Rebuild
+    flutter clean
+    flutter pub get
+    cd ios
+    pod install
+    cd ..
+    flutter run -d ios
+    ```
+  </Accordion>
+  
+  <Accordion title="Android Build Fails" icon="android">
+    **Error**: Gradle sync or build errors
+    
+    **Solutions**:
+    ```bash
+    # Clean Android build
+    cd android
+    ./gradlew clean
+    cd ..
+    
+    # Clear Flutter build cache
+    flutter clean
+    flutter pub get
+    
+    # Rebuild
+    flutter run -d android
+    ```
+  </Accordion>
+  
+  <Accordion title="Version Conflicts" icon="triangle-exclamation">
+    **Error**: Package version conflicts in `pubspec.yaml`
+    
+    **Solutions**:
+    1. Check for incompatible versions:
+       ```bash
+       flutter pub outdated
+       ```
+    
+    2. Update to compatible versions:
+       ```bash
+       flutter pub upgrade --major-versions
+       ```
+    
+    3. Review and commit changes to `pubspec.lock`
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+Now that you have FSD Movil installed:
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Configure your environment and run the app in 5 minutes
+  </Card>
+  <Card title="Environment Setup" icon="gears" href="/configuration/environment-setup">
+    Learn about API configuration and build variables
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/development/architecture">
+    Understand the app structure and design patterns
+  </Card>
+  <Card title="API Integration" icon="plug" href="/development/api-integration">
+    Learn how the app communicates with the backend
+  </Card>
+</CardGroup>
+
+<Tip>
+  Join the [GitHub discussions](https://github.com/elchinito24/fsdmovil/discussions) to connect with other developers and get help.
+</Tip>

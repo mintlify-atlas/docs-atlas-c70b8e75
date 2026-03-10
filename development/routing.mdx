@@ -1,0 +1,378 @@
+---
+title: 'Routing'
+description: 'Navigation, routing, and custom transitions using GoRouter in FSD Movil'
+---
+
+## Overview
+
+FSD Movil uses [GoRouter](https://pub.dev/packages/go_router) for declarative routing with custom slide transitions. The router configuration is centralized in `lib/router/app_router.dart`.
+
+## Router Configuration
+
+The app router is defined as a global variable (lib/router/app_router.dart:37-56):
+
+```dart
+final appRouter = GoRouter(
+  initialLocation: '/login',
+  routes: [
+    GoRoute(
+      path: '/login',
+      pageBuilder: (context, state) =>
+          _slideTransition(context, state, const LoginScreen()),
+    ),
+    GoRoute(
+      path: '/register',
+      pageBuilder: (context, state) =>
+          _slideTransition(context, state, const RegisterScreen()),
+    ),
+    GoRoute(
+      path: '/dashboard',
+      pageBuilder: (context, state) =>
+          _slideTransition(context, state, const DashboardScreen()),
+    ),
+  ],
+);
+```
+
+### Key Configuration
+
+- **initialLocation**: App starts at `/login` route
+- **routes**: List of all available routes
+- **pageBuilder**: Custom page builder for transitions
+
+## Available Routes
+
+### Authentication Routes
+
+#### `/login`
+
+- **Screen**: LoginScreen
+- **Purpose**: User authentication
+- **Access**: Public (no auth required)
+
+#### `/register`
+
+- **Screen**: RegisterScreen
+- **Purpose**: New user registration
+- **Access**: Public (no auth required)
+
+### Protected Routes
+
+#### `/dashboard`
+
+- **Screen**: DashboardScreen
+- **Purpose**: Main application interface
+- **Access**: Requires authentication
+
+<Note>
+Current implementation doesn't include navigation guards. See [Navigation Guards](#navigation-guards) section for implementation guidance.
+</Note>
+
+## Custom Slide Transitions
+
+### Transition Function
+
+The app uses custom slide transitions for all navigation (lib/router/app_router.dart:7-35):
+
+```dart
+Page<void> _slideTransition(
+  BuildContext context,
+  GoRouterState state,
+  Widget child,
+) => CustomTransitionPage(
+  key: state.pageKey,
+  child: child,
+  transitionDuration: const Duration(milliseconds: 300),
+  reverseTransitionDuration: const Duration(milliseconds: 300),
+  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+    // New screen: slides in from right on push, slides out right on pop
+    final primaryPosition = Tween<Offset>(
+      begin: const Offset(1.0, 0.0),
+      end: Offset.zero,
+    ).chain(CurveTween(curve: Curves.easeInOut)).animate(animation);
+
+    // Background screen: slides left when new screen enters,
+    // returns from left when new screen pops
+    final secondaryPosition = Tween<Offset>(
+      begin: Offset.zero,
+      end: const Offset(-1.0, 0.0),
+    ).chain(CurveTween(curve: Curves.easeInOut)).animate(secondaryAnimation);
+
+    return SlideTransition(
+      position: primaryPosition,
+      child: SlideTransition(position: secondaryPosition, child: child),
+    );
+  },
+);
+```
+
+### Transition Behavior
+
+#### Push Navigation (Forward)
+
+1. New screen slides in from right (1.0, 0.0) to center (0.0, 0.0)
+2. Background screen slides left from center (0.0, 0.0) to (-1.0, 0.0)
+3. Duration: 300ms with easeInOut curve
+
+#### Pop Navigation (Backward)
+
+1. Current screen slides out to right (reverse of entry)
+2. Background screen slides back from left to center
+3. Duration: 300ms with easeInOut curve
+
+### Animation Configuration
+
+- **transitionDuration**: 300ms for forward navigation
+- **reverseTransitionDuration**: 300ms for backward navigation
+- **Curve**: `Curves.easeInOut` for smooth acceleration/deceleration
+- **Primary animation**: Controls incoming screen
+- **Secondary animation**: Controls outgoing screen
+
+## Navigation Methods
+
+### Declarative Navigation
+
+Navigate using context extensions:
+
+```dart
+// Push new route
+context.go('/dashboard');
+
+// Replace current route
+context.replace('/login');
+
+// Push and keep route
+context.push('/register');
+
+// Go back
+context.pop();
+```
+
+### Navigation with State
+
+Pass data between routes:
+
+```dart
+// Navigate with query parameters
+context.go('/dashboard?tab=projects');
+
+// Access in destination
+final tab = state.queryParameters['tab'];
+```
+
+### Programmatic Navigation
+
+Navigate from anywhere:
+
+```dart
+import 'package:fsdmovil/router/app_router.dart';
+
+// From outside widget tree
+appRouter.go('/login');
+```
+
+## Integration with MaterialApp
+
+The router connects to MaterialApp in lib/main.dart:22-34:
+
+```dart
+return MaterialApp.router(
+  title: 'FSD',
+  debugShowCheckedModeBanner: false,
+  theme: ThemeData(
+    useMaterial3: true,
+    scaffoldBackgroundColor: const Color(0xFF1C1C1E),
+    colorScheme: const ColorScheme.dark(
+      primary: Color(0xFFE8365D),
+      surface: Color(0xFF1C1C1E),
+    ),
+  ),
+  routerConfig: appRouter,
+);
+```
+
+- **MaterialApp.router**: Constructor that accepts a router configuration
+- **routerConfig**: Links the GoRouter instance
+
+## Navigation Guards
+
+### Current Implementation
+
+The app currently lacks navigation guards. Routes are accessible regardless of authentication state.
+
+### Recommended Implementation
+
+Add redirect logic to protect routes:
+
+```dart
+final appRouter = GoRouter(
+  initialLocation: '/login',
+  redirect: (context, state) {
+    // Check authentication state
+    final container = ProviderScope.containerOf(context);
+    final authStatus = container.read(authProvider);
+    
+    final isLoginRoute = state.subloc == '/login';
+    final isRegisterRoute = state.subloc == '/register';
+    final isAuthRoute = isLoginRoute || isRegisterRoute;
+    
+    // Redirect to login if unauthenticated and accessing protected route
+    if (authStatus == AuthStatus.unauthenticated && !isAuthRoute) {
+      return '/login';
+    }
+    
+    // Redirect to dashboard if authenticated and accessing auth routes
+    if (authStatus == AuthStatus.authenticated && isAuthRoute) {
+      return '/dashboard';
+    }
+    
+    // No redirect needed
+    return null;
+  },
+  routes: [
+    // ... routes
+  ],
+);
+```
+
+### Guard Features
+
+1. **Authentication Check**: Verify user auth status before navigation
+2. **Conditional Redirects**: Redirect based on state and destination
+3. **Public Routes**: Allow access to login/register when unauthenticated
+4. **Protected Routes**: Require authentication for dashboard and beyond
+
+## Deep Linking
+
+### URL Structure
+
+GoRouter automatically supports deep linking:
+
+```
+fsdmovil://login
+fsdmovil://register
+fsdmovil://dashboard
+```
+
+### Configuration
+
+Deep links require platform-specific configuration:
+
+#### Android (AndroidManifest.xml)
+
+```xml
+<intent-filter>
+  <action android:name="android.intent.action.VIEW" />
+  <category android:name="android.intent.category.DEFAULT" />
+  <category android:name="android.intent.category.BROWSABLE" />
+  <data android:scheme="fsdmovil" />
+</intent-filter>
+```
+
+#### iOS (Info.plist)
+
+```xml
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>fsdmovil</string>
+    </array>
+  </dict>
+</array>
+```
+
+## Nested Routes
+
+### Future Implementation
+
+As the app grows, implement nested routes for better organization:
+
+```dart
+GoRoute(
+  path: '/dashboard',
+  pageBuilder: (context, state) => 
+      _slideTransition(context, state, const DashboardScreen()),
+  routes: [
+    GoRoute(
+      path: 'projects',
+      pageBuilder: (context, state) =>
+          _slideTransition(context, state, const ProjectsScreen()),
+    ),
+    GoRoute(
+      path: 'projects/:id',
+      pageBuilder: (context, state) {
+        final id = state.params['id']!;
+        return _slideTransition(
+          context, 
+          state, 
+          ProjectDetailScreen(id: id),
+        );
+      },
+    ),
+  ],
+),
+```
+
+### Benefits
+
+- Logical grouping of related routes
+- Clear parent-child relationships
+- Path parameters for dynamic routing
+- Easier to manage route hierarchies
+
+## Error Handling
+
+### 404 Routes
+
+Add error page for unknown routes:
+
+```dart
+final appRouter = GoRouter(
+  // ... other config
+  errorBuilder: (context, state) => ErrorScreen(
+    error: state.error.toString(),
+  ),
+);
+```
+
+### Redirect Loops
+
+Prevent infinite redirects in guards:
+
+```dart
+redirect: (context, state) {
+  // Check if already redirecting
+  if (state.subloc == state.subloc) {
+    return null; // Prevent loop
+  }
+  // ... redirect logic
+}
+```
+
+## Performance Considerations
+
+### Lazy Loading
+
+Routes load screens on-demand, no preloading required.
+
+### Transition Duration
+
+300ms provides smooth animations without feeling sluggish. Adjust if needed:
+
+```dart
+transitionDuration: const Duration(milliseconds: 200), // Faster
+transitionDuration: const Duration(milliseconds: 400), // Slower
+```
+
+### State Preservation
+
+GoRouter automatically preserves state during transitions.
+
+## Next Steps
+
+- Implement [State Management](/development/state-management) integration
+- Add navigation guards with authentication checks
+- Explore [API Integration](/development/api-integration) patterns
+- Review [Architecture](/development/architecture) overview

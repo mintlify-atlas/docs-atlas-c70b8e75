@@ -1,0 +1,273 @@
+---
+title: "Authentication"
+description: "Secure JWT-based authentication with token persistence across sessions"
+---
+
+## Overview
+
+FSD Movil implements a robust authentication system using JSON Web Tokens (JWT) for secure user authentication. The system handles user registration, login, logout, and automatic session restoration across app restarts.
+
+## Authentication Flow
+
+<Steps>
+  <Step title="User enters credentials">
+    Users provide their email and password through the login screen or register with their profile information.
+  </Step>
+  
+  <Step title="API authentication">
+    Credentials are sent to the backend API which validates them and returns a JWT token upon success.
+  </Step>
+  
+  <Step title="Token storage">
+    The JWT token is securely stored locally using `SharedPreferences` for persistent authentication.
+  </Step>
+  
+  <Step title="Token injection">
+    All subsequent API requests automatically include the JWT token in the Authorization header.
+  </Step>
+  
+  <Step title="Session restoration">
+    On app restart, the stored token is retrieved and validated to restore the user's session automatically.
+  </Step>
+</Steps>
+
+## Implementation
+
+### AuthService
+
+The `AuthService` class (lib/services/auth_service.dart:5-61) handles all authentication operations:
+
+```dart lib/services/auth_service.dart
+class AuthService {
+  static const _tokenKey = 'auth_token';
+
+  /// Login: returns the token if successful
+  static Future<String?> login(String email, String password) async {
+    final response = await ApiService.dio.post(
+      ApiRoutes.authLogin,
+      data: {'email': email, 'password': password},
+    );
+    final token = response.data['token'] as String?;
+    if (token != null) {
+      await _saveToken(token);
+      ApiService.setAuthToken(token);
+    }
+    return token;
+  }
+
+  /// Register: returns the token if registration was successful
+  static Future<String?> register(
+    String firstName,
+    String lastName,
+    String email,
+    String password,
+  ) async {
+    final response = await ApiService.dio.post(
+      ApiRoutes.authRegister,
+      data: {
+        'firstName': firstName,
+        'lastName': lastName,
+        'email': email,
+        'password': password,
+      },
+    );
+    final token = response.data['token'] as String?;
+    if (token != null) {
+      await _saveToken(token);
+      ApiService.setAuthToken(token);
+    }
+    return token;
+  }
+
+  static Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+    ApiService.clearAuthToken();
+  }
+
+  static Future<String?> getSavedToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_tokenKey);
+  }
+}
+```
+
+### State Management
+
+Authentication state is managed globally using Riverpod's `AuthNotifier`:
+
+```dart lib/providers/auth_provider.dart
+enum AuthStatus { unknown, authenticated, unauthenticated }
+
+class AuthNotifier extends StateNotifier<AuthStatus> {
+  AuthNotifier() : super(AuthStatus.unknown);
+
+  Future<void> checkToken() async {
+    final token = await AuthService.getSavedToken();
+    if (token != null) {
+      ApiService.setAuthToken(token);
+      state = AuthStatus.authenticated;
+    } else {
+      state = AuthStatus.unauthenticated;
+    }
+  }
+
+  Future<String?> login(String email, String password) async {
+    if (email.trim().isEmpty || password.isEmpty) {
+      return 'Please fill out all fields';
+    }
+    final token = await AuthService.login(email.trim(), password);
+    if (token != null) {
+      state = AuthStatus.authenticated;
+      return null;
+    }
+    return 'Credenciales incorrectas';
+  }
+
+  Future<void> logout() async {
+    await AuthService.logout();
+    state = AuthStatus.unauthenticated;
+  }
+}
+```
+
+## User Registration
+
+New users can register by providing:
+
+<ParamField path="firstName" type="string" required>
+  User's first name
+</ParamField>
+
+<ParamField path="lastName" type="string" required>
+  User's last name
+</ParamField>
+
+<ParamField path="email" type="string" required>
+  Valid email address for login and notifications
+</ParamField>
+
+<ParamField path="password" type="string" required>
+  Secure password (minimum requirements enforced by backend)
+</ParamField>
+
+### Registration Example
+
+```dart
+final result = await ref.read(authProvider.notifier).register(
+  'John',
+  'Doe',
+  'john.doe@example.com',
+  'SecurePassword123',
+);
+
+if (result == null) {
+  // Registration successful, user is now authenticated
+  context.go('/dashboard');
+} else {
+  // Show error message
+  print('Registration failed: $result');
+}
+```
+
+## User Login
+
+Existing users authenticate with their email and password:
+
+```dart
+final error = await ref.read(authProvider.notifier).login(
+  'john.doe@example.com',
+  'SecurePassword123',
+);
+
+if (error == null) {
+  // Login successful
+  context.go('/dashboard');
+} else {
+  // Show error message
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(error)),
+  );
+}
+```
+
+## Token Persistence
+
+<Note>
+JWT tokens are automatically persisted using `SharedPreferences`, ensuring users remain authenticated across app restarts without needing to log in again.
+</Note>
+
+The token is stored with the key `auth_token` and retrieved during app initialization:
+
+```dart
+// Check for existing token on app startup
+await ref.read(authProvider.notifier).checkToken();
+
+// Token is automatically restored and injected into API client
+```
+
+## Logout
+
+Users can log out at any time, which clears the stored token and resets the authentication state:
+
+```dart
+await ref.read(authProvider.notifier).logout();
+context.go('/login');
+```
+
+## Security Best Practices
+
+<AccordionGroup>
+  <Accordion title="Secure Token Storage">
+    JWT tokens are stored using Flutter's `shared_preferences` package, which uses:
+    - **iOS**: NSUserDefaults
+    - **Android**: SharedPreferences (encrypted on Android 6.0+)
+    - **Web**: LocalStorage with same-origin policy
+  </Accordion>
+
+  <Accordion title="Automatic Token Injection">
+    The `ApiService` automatically injects the JWT token into all API requests via the Authorization header:
+    ```dart
+    Authorization: Bearer <jwt_token>
+    ```
+  </Accordion>
+
+  <Accordion title="Session Validation">
+    If the backend returns a 401 Unauthorized response, the app automatically:
+    1. Clears the invalid token
+    2. Resets authentication state
+    3. Redirects to the login screen
+  </Accordion>
+
+  <Accordion title="No Plaintext Passwords">
+    Passwords are never stored locally. Only the JWT token is persisted after successful authentication.
+  </Accordion>
+</AccordionGroup>
+
+## API Endpoints
+
+The authentication system uses these backend endpoints:
+
+- `POST /auth/login` - User authentication
+- `POST /auth/register` - New user registration
+- `POST /auth/logout` - Session invalidation
+- `GET /auth/me` - Get current user profile
+
+See the [API Reference](/api/auth) for detailed endpoint documentation.
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="API Authentication" icon="key" href="/api/authentication">
+    Learn about JWT token format and API authentication
+  </Card>
+  <Card title="State Management" icon="gears" href="/development/state-management">
+    Understand how Riverpod manages auth state
+  </Card>
+  <Card title="Routing" icon="route" href="/development/routing">
+    Configure protected routes and navigation guards
+  </Card>
+  <Card title="API Integration" icon="plug" href="/development/api-integration">
+    See how the API client handles authentication
+  </Card>
+</CardGroup>

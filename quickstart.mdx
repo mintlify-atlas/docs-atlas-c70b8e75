@@ -1,80 +1,452 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Quick Start"
+description: "Get FSD Movil running on your machine in under 5 minutes"
 ---
 
-## Get started in three steps
+## Prerequisites
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
+Before you begin, ensure you have:
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Flutter SDK" icon="mobile">
+    Version 3.10.8 or higher installed and configured
+  </Card>
+  <Card title="Development Tools" icon="wrench">
+    IDE (VS Code or Android Studio) with Flutter extensions
+  </Card>
+  <Card title="Backend API" icon="server">
+    Access to the FSD Movil backend API endpoint
+  </Card>
+  <Card title="Target Device" icon="devices">
+    Physical device, emulator, or browser for testing
+  </Card>
 </CardGroup>
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  If you haven't installed Flutter yet, check out the [installation guide](/installation) first.
 </Note>
+
+## Step 1: Clone the Repository
+
+Clone the FSD Movil repository to your local machine:
+
+<CodeGroup>
+```bash HTTPS
+git clone https://github.com/elchinito24/fsdmovil.git
+cd fsdmovil
+```
+
+```bash SSH
+git clone git@github.com:elchinito24/fsdmovil.git
+cd fsdmovil
+```
+
+```bash GitHub CLI
+gh repo clone elchinito24/fsdmovil
+cd fsdmovil
+```
+</CodeGroup>
+
+## Step 2: Install Dependencies
+
+Install all required Flutter packages:
+
+```bash
+flutter pub get
+```
+
+This will install the following key dependencies:
+
+<AccordionGroup>
+  <Accordion title="Core Dependencies" icon="cube">
+    - **flutter_riverpod** `^2.6.1`: State management
+    - **go_router** `^14.6.2`: Declarative routing
+    - **dio** `^5.7.0`: HTTP client for API calls
+    - **shared_preferences** `^2.3.3`: Local storage for JWT tokens
+  </Accordion>
+  
+  <Accordion title="Development Dependencies" icon="code">
+    - **flutter_test**: Testing framework
+    - **flutter_launcher_icons** `^0.14.1`: App icon generation
+    - **flutter_lints** `^6.0.0`: Code analysis and linting
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+  Run `flutter doctor` to verify your Flutter installation and resolve any issues before proceeding.
+</Tip>
+
+## Step 3: Configure API Endpoint
+
+FSD Movil needs to know where your backend API is located. There are two ways to configure this:
+
+### Option A: VS Code Launch Configuration (Recommended)
+
+This method keeps your API URL out of version control and makes it easy to switch between environments.
+
+<Steps>
+  <Step title="Create launch.json">
+    Create the VS Code configuration directory and file:
+    
+    ```bash
+    mkdir -p .vscode
+    touch .vscode/launch.json
+    ```
+  </Step>
+  
+  <Step title="Add Configuration">
+    Open `.vscode/launch.json` and add your configuration:
+    
+    ```json .vscode/launch.json
+    {
+      "version": "0.2.0",
+      "configurations": [
+        {
+          "name": "fsdmovil (dev)",
+          "request": "launch",
+          "type": "dart",
+          "toolArgs": [
+            "--dart-define=API_URL=https://your-dev-api.com"
+          ]
+        },
+        {
+          "name": "fsdmovil (prod)",
+          "request": "launch",
+          "type": "dart",
+          "toolArgs": [
+            "--dart-define=API_URL=https://your-prod-api.com"
+          ]
+        }
+      ]
+    }
+    ```
+  </Step>
+  
+  <Step title="Select Configuration">
+    In VS Code, press **F5** or select your configuration from the **Run and Debug** panel
+  </Step>
+</Steps>
+
+<Warning>
+  The `.vscode/launch.json` file is intentionally excluded from Git via `.gitignore`. Never commit API URLs to version control.
+</Warning>
+
+### Option B: Command Line Arguments
+
+Pass the API URL directly when running Flutter commands:
+
+```bash
+flutter run --dart-define=API_URL=https://your-api.com
+```
+
+### How It Works
+
+The API URL is read at compile-time using `String.fromEnvironment`:
+
+```dart lib/config/app_config.dart
+class AppConfig {
+  static const String baseUrl = String.fromEnvironment(
+    'API_URL',
+    defaultValue: 'http://10.0.2.2:3000',
+  );
+
+  static const int connectTimeout = 10;
+  static const int receiveTimeout = 10;
+}
+```
+
+<Note>
+  The default URL `http://10.0.2.2:3000` only works in the Android emulator and points to `localhost:3000` on your development machine.
+</Note>
+
+## Step 4: Select Target Device
+
+Choose where you want to run the app:
+
+```bash
+flutter devices
+```
+
+This will show available devices:
+
+```
+Chrome (web)       • chrome     • web-javascript • Google Chrome 120.0
+iPhone 15 (mobile) • ios-sim    • ios            • iOS 17.0 (simulator)
+Pixel 7 (mobile)   • android    • android-arm64  • Android 14 (emulator)
+```
+
+<Tabs>
+  <Tab title="Web">
+    Perfect for rapid development and testing:
+    
+    ```bash
+    flutter run -d chrome --dart-define=API_URL=https://your-api.com
+    ```
+    
+    The app will open in Google Chrome with hot reload enabled.
+  </Tab>
+  
+  <Tab title="Android">
+    Run on Android emulator or physical device:
+    
+    ```bash
+    flutter run -d android --dart-define=API_URL=https://your-api.com
+    ```
+    
+    <Tip>
+      For local backend testing on emulator, use `http://10.0.2.2:PORT` instead of `localhost`
+    </Tip>
+  </Tab>
+  
+  <Tab title="iOS">
+    Run on iOS simulator or physical device:
+    
+    ```bash
+    flutter run -d ios --dart-define=API_URL=https://your-api.com
+    ```
+    
+    <Warning>
+      Running on physical iOS devices requires Apple Developer account and proper provisioning.
+    </Warning>
+  </Tab>
+  
+  <Tab title="Desktop">
+    Run as native desktop application:
+    
+    ```bash
+    # Windows
+    flutter run -d windows --dart-define=API_URL=https://your-api.com
+    
+    # macOS
+    flutter run -d macos --dart-define=API_URL=https://your-api.com
+    
+    # Linux
+    flutter run -d linux --dart-define=API_URL=https://your-api.com
+    ```
+  </Tab>
+</Tabs>
+
+## Step 5: Run the Application
+
+### Using VS Code (Recommended)
+
+<Steps>
+  <Step title="Open Project">
+    Open the `fsdmovil` folder in VS Code
+  </Step>
+  
+  <Step title="Select Device">
+    Click the device selector in the bottom-right corner of VS Code
+  </Step>
+  
+  <Step title="Start Debugging">
+    Press **F5** or select **Run > Start Debugging**
+  </Step>
+  
+  <Step title="Choose Configuration">
+    Select either "fsdmovil (dev)" or "fsdmovil (prod)" from the dropdown
+  </Step>
+</Steps>
+
+VS Code will compile the app with your API URL and launch it on the selected device.
+
+### Using Terminal
+
+Run the app directly from the command line:
+
+```bash
+flutter run --dart-define=API_URL=https://your-api.com
+```
+
+<Note>
+  **Hot Reload** is enabled by default. Press **r** in the terminal to reload, **R** to restart, or **q** to quit.
+</Note>
+
+## Step 6: First Launch
+
+When the app launches, you'll see the login screen:
+
+<Frame>
+  <img src="/images/login-screen.png" alt="FSD Movil Login Screen" />
+</Frame>
+
+### Register a New Account
+
+<Steps>
+  <Step title="Navigate to Register">
+    Tap **Create Account** on the login screen
+  </Step>
+  
+  <Step title="Fill Registration Form">
+    Enter your details:
+    - First Name
+    - Last Name
+    - Email Address
+    - Password
+  </Step>
+  
+  <Step title="Submit">
+    Tap **Register** to create your account
+  </Step>
+  
+  <Step title="Automatic Login">
+    You'll be automatically logged in and redirected to the dashboard
+  </Step>
+</Steps>
+
+### Login with Existing Account
+
+If you already have an account:
+
+```dart
+// Authentication happens through the auth provider
+final authNotifier = ref.read(authProvider.notifier);
+final error = await authNotifier.login(email, password);
+
+if (error == null) {
+  // Login successful, JWT token saved
+  context.go('/dashboard');
+}
+```
+
+<Tip>
+  JWT tokens are automatically persisted using `shared_preferences`, so you'll stay logged in across app restarts.
+</Tip>
+
+## Development Workflow
+
+### Hot Reload
+
+Make changes to your code and see them instantly:
+
+<Tabs>
+  <Tab title="VS Code">
+    - **Save File**: Press **Ctrl+S** (Windows/Linux) or **Cmd+S** (Mac)
+    - Hot reload happens automatically
+  </Tab>
+  
+  <Tab title="Terminal">
+    - Press **r** to hot reload
+    - Press **R** to hot restart (full restart with state reset)
+  </Tab>
+</Tabs>
+
+<Warning>
+  Hot reload preserves app state but may not reflect changes to:
+  - `main()` function
+  - Global variables
+  - Static fields
+  
+  Use hot **restart** (R) for these changes.
+</Warning>
+
+### Code Analysis
+
+Run the linter to check for issues:
+
+```bash
+flutter analyze
+```
+
+### Testing
+
+Run unit and widget tests:
+
+```bash
+flutter test
+```
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="API Connection Failed" icon="circle-exclamation">
+    **Problem**: App can't connect to backend API
+    
+    **Solutions**:
+    - Verify your API URL is correct in `launch.json` or command line
+    - Check that the backend server is running
+    - On Android emulator, use `http://10.0.2.2:PORT` for localhost
+    - Ensure no firewall is blocking the connection
+    - Check network permissions in platform-specific manifests
+  </Accordion>
+  
+  <Accordion title="Dependencies Installation Failed" icon="box">
+    **Problem**: `flutter pub get` fails or shows errors
+    
+    **Solutions**:
+    - Run `flutter clean` then `flutter pub get` again
+    - Check your internet connection
+    - Verify Flutter SDK version: `flutter --version`
+    - Delete `pubspec.lock` and try again
+    - Check for version conflicts in `pubspec.yaml`
+  </Accordion>
+  
+  <Accordion title="Device Not Detected" icon="mobile-screen">
+    **Problem**: Target device doesn't appear in `flutter devices`
+    
+    **Solutions**:
+    - **Android**: Enable USB debugging in Developer Options
+    - **iOS**: Trust the computer on your device
+    - **Emulator**: Ensure emulator is running before `flutter devices`
+    - **Web**: Chrome must be installed
+    - Run `flutter doctor` to diagnose platform setup issues
+  </Accordion>
+  
+  <Accordion title="Build Errors After Git Pull" icon="code-branch">
+    **Problem**: App fails to build after pulling latest changes
+    
+    **Solutions**:
+    1. Clean the build cache:
+       ```bash
+       flutter clean
+       ```
+    2. Re-fetch dependencies:
+       ```bash
+       flutter pub get
+       ```
+    3. Rebuild the app:
+       ```bash
+       flutter run --dart-define=API_URL=https://your-api.com
+       ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+Now that FSD Movil is running, explore these features:
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/features/authentication">
+    Learn about JWT authentication, token persistence, and session management
+  </Card>
+  <Card title="Workspaces" icon="users" href="/features/workspaces">
+    Create collaborative workspaces and manage team access
+  </Card>
+  <Card title="Projects" icon="folder" href="/features/projects">
+    Set up and manage software projects
+  </Card>
+  <Card title="SRS Documents" icon="file-lines" href="/features/srs-documents">
+    Generate and export professional SRS documentation
+  </Card>
+</CardGroup>
+
+## Getting Help
+
+<CardGroup cols={2}>
+  <Card title="Configuration Guide" icon="sliders" href="/configuration/environment-setup">
+    Deep dive into environment variables and build configuration
+  </Card>
+  <Card title="Architecture Overview" icon="diagram-project" href="/development/architecture">
+    Understand the app's structure and design patterns
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore the complete REST API documentation
+  </Card>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/elchinito24/fsdmovil/issues">
+    Report bugs or request features
+  </Card>
+</CardGroup>
+
+<Tip>
+  Join the community discussions on GitHub to connect with other developers and get help.
+</Tip>
