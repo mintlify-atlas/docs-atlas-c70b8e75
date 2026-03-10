@@ -1,0 +1,94 @@
+{
+  "projectType": "saas",
+  "projectName": "FSD Movil",
+  "projectDescription": "Mobile platform for project management and automated SRS documentation generation with real-time collaboration.",
+  "theme": "almond",
+  "primaryColor": "#E8365D",
+  "lightColor": null,
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "quickstart", "installation"]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/authentication",
+              "features/workspaces",
+              "features/projects",
+              "features/srs-documents",
+              "features/collaboration",
+              "features/version-control"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/environment-setup",
+              "configuration/api-configuration",
+              "configuration/build-deployment"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/architecture",
+              "development/state-management",
+              "development/routing",
+              "development/api-integration"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "API Overview",
+            "pages": ["api/overview", "api/authentication"]
+          },
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api/auth",
+              "api/workspaces",
+              "api/projects",
+              "api/documents",
+              "api/users"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "JWT-based authentication with token persistence",
+    "Workspace and project management with role-based access control",
+    "Automated SRS documentation generation with real-time preview",
+    "Multi-user collaboration with change tracking and approvals",
+    "Version control and revision history for documents",
+    "Automatic diagram generation (Mermaid) for sequences and ER diagrams",
+    "DOCX export for SRS documents",
+    "Cross-platform support (Android, iOS, Web, Windows, macOS, Linux)"
+  ],
+  "publicApiSurface": [
+    "POST /auth/login - User authentication",
+    "POST /auth/register - User registration",
+    "POST /auth/logout - User logout",
+    "GET /auth/me - Get current user info",
+    "GET /workspaces - List all workspaces",
+    "GET /workspaces/:id - Get workspace details",
+    "GET /projects - List all projects",
+    "GET /projects/:id - Get project details",
+    "GET /documents - List all SRS documents",
+    "GET /documents/:id - Get document details",
+    "GET /documents/:id/revisions - Get document revision history",
+    "GET /users - List all users",
+    "GET /users/:id - Get user details"
+  ]
+}
